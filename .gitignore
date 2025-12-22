@@ -23,6 +23,9 @@ api/*.log
 ui/dist/
 ui/dist-ssr/
 ui/*.local
+ui/.env.development
+ui/.env.staging
+ui/.env.production
 
 # Environment variables
 .env

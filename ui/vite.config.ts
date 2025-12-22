@@ -1,20 +1,28 @@
-import { defineConfig } from 'vite';
-import path from 'path';
+import { defineConfig, loadEnv } from "vite";
+import path from "path";
 
 // https://vite.dev/config/
-export default defineConfig({
-  resolve: {
-    alias: {
-      '@common': path.resolve(__dirname, '../common'),
-    },
-  },
-  server: {
-    port: 5173,
-    open: true,
-  },
-  build: {
-    outDir: 'dist',
-  },
-  publicDir: 'public',
-});
+export default defineConfig(({ mode }) => {
+  // Load env file based on `mode` in the current working directory.
+  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
+  const env = loadEnv(mode, process.cwd(), "");
 
+  // Parse APP_PORT from environment, default to 5173 if not set
+  const port = parseInt(env.APP_PORT || "5173", 10);
+
+  return {
+    resolve: {
+      alias: {
+        "@common": path.resolve(__dirname, "../common"),
+      },
+    },
+    server: {
+      port: port,
+      open: true,
+    },
+    build: {
+      outDir: "dist",
+    },
+    publicDir: "public",
+  };
+});
