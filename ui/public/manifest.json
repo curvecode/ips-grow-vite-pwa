@@ -1,0 +1,19 @@
+{
+  "name": "Daily Buy Tracker",
+  "short_name": "Buy Tracker",
+  "description": "Track your daily purchases",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a1a1a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
+
