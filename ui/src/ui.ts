@@ -50,9 +50,7 @@ export function renderApp(
   `;
 }
 
-export function renderAddPage(
-  formData: Partial<DailyBuy>
-): string {
+export function renderAddPage(formData: Partial<DailyBuy>): string {
   return `
     <form class="form" id="dailyBuyForm">
       <div class="form-group">
@@ -132,85 +130,4 @@ export function renderAddPage(
   `;
 }
 
-export function renderListPage(entries: DailyBuy[]): string {
-  if (entries.length === 0) {
-    return `
-      <div class="empty-state">
-        <p class="empty-text">No entries yet</p>
-        <p class="empty-subtext">Add your first entry to get started</p>
-      </div>
-    `;
-  }
-
-  // Group entries by date
-  const grouped = entries.reduce((acc, entry) => {
-    const date = new Date(entry.date).toLocaleDateString();
-    if (!acc[date]) {
-      acc[date] = [];
-    }
-    acc[date].push(entry);
-    return acc;
-  }, {} as Record<string, DailyBuy[]>);
-
-  // Sort dates descending
-  const sortedDates = Object.keys(grouped).sort(
-    (a, b) => new Date(b).getTime() - new Date(a).getTime()
-  );
-
-  return `
-    <div class="list-container">
-      ${sortedDates
-        .map(
-          (date) => `
-        <div class="date-group">
-          <h2 class="date-header">${date}</h2>
-          <div class="entries-list">
-            ${grouped[date].map((entry) => renderEntryItem(entry)).join("")}
-          </div>
-        </div>
-      `
-        )
-        .join("")}
-    </div>
-  `;
-}
-
-export function renderEntryItem(entry: DailyBuy): string {
-  const date = new Date(entry.date);
-  const dateStr = date.toLocaleDateString([], {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-  const timeStr = date.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  return `
-    <div class="entry-item" data-id="${entry.id}">
-      <div class="entry-main">
-        <div class="entry-header">
-          <span class="entry-type">${entry.type}</span>
-          <span class="entry-datetime">
-            <span class="entry-date">${dateStr}</span>
-            <span class="entry-time">${timeStr}</span>
-          </span>
-        </div>
-        ${
-          entry.description
-            ? `<p class="entry-description">${entry.description}</p>`
-            : ""
-        }
-        <div class="entry-details">
-          ${entry.price ? `<span>Price: $${entry.price.toFixed(2)}</span>` : ""}
-          ${entry.quantity ? `<span>Qty: ${entry.quantity}</span>` : ""}
-        </div>
-      </div>
-      <button class="delete-btn" data-id="${
-        entry.id
-      }" aria-label="Delete entry">🗑️</button>
-    </div>
-  `;
-}
-
+// List page functions moved to pages/list.ts for lazy loading

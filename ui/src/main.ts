@@ -3,7 +3,6 @@ import type { DailyBuy, BuyType } from "@common/daily-buy.model";
 import {
   renderApp,
   renderAddPage,
-  renderListPage,
   getCurrentDateTimeLocal,
   type Page,
 } from "./ui";
@@ -19,6 +18,9 @@ import {
   syncPendingEntries,
   getPendingSyncEntries,
 } from "./sync";
+
+// Dynamic import for list page (lazy loading)
+let listPageModule: typeof import("./pages/list") | null = null;
 
 // Theme management
 type Theme = "light" | "dark";
@@ -104,18 +106,14 @@ async function loadEntriesFromAPI(): Promise<void> {
   }
 }
 
-function deleteEntry(id: string): void {
-  const entries = getEntries();
-  const filtered = entries.filter((e) => e.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-}
+// Note: deleteEntry is now in the list page module
 
 // Navigation
 let currentPage: Page = "add";
 
-function navigateTo(page: Page) {
+async function navigateTo(page: Page) {
   currentPage = page;
-  renderAppView();
+  await renderAppView();
   updateTabButtons();
 }
 
@@ -125,22 +123,32 @@ let formData: Partial<DailyBuy> = {
   date: getCurrentDateTimeLocal(),
 };
 
-// Render app view
-function renderAppView() {
+// Render app view with lazy loading for list page
+async function renderAppView() {
   const app = document.querySelector<HTMLDivElement>("#app")!;
 
-  const pageContent =
-    currentPage === "add"
-      ? renderAddPage(formData)
-      : renderListPage(getEntries());
+  let pageContent: string;
+
+  if (currentPage === "add") {
+    pageContent = renderAddPage(formData);
+  } else {
+    // Lazy load list page module
+    if (!listPageModule) {
+      console.log("[Lazy Load] Loading list page module...");
+      listPageModule = await import("./pages/list");
+      console.log("[Lazy Load] List page module loaded");
+    }
+    const entries = listPageModule.getEntries();
+    pageContent = listPageModule.renderListPage(entries);
+  }
 
   app.innerHTML = renderApp(currentPage, () => pageContent);
 
-  setupEventListeners();
+  await setupEventListeners();
   updateThemeIcon();
 }
 
-function setupEventListeners() {
+async function setupEventListeners() {
   // Theme toggle
   const themeToggle = document.getElementById("themeToggle");
   themeToggle?.addEventListener("click", () => {
@@ -163,20 +171,18 @@ function setupEventListeners() {
     form?.addEventListener("submit", handleSubmit);
   }
 
-  // Delete buttons
-  if (currentPage === "list") {
-    const deleteButtons = document.querySelectorAll(".delete-btn");
-    deleteButtons.forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const id = (e.currentTarget as HTMLElement).dataset.id;
-        if (id) {
-          if (confirm("Are you sure you want to delete this entry?")) {
-            deleteEntry(id);
-            renderAppView();
-          }
-        }
-      });
-    });
+  // List page event listeners (lazy loaded)
+  if (currentPage === "list" && listPageModule) {
+    listPageModule.setupListPageListeners(
+      (id: string) => {
+        // onDelete callback
+        console.log("[List] Entry deleted:", id);
+      },
+      () => {
+        // onRefresh callback
+        renderAppView();
+      }
+    );
   }
 }
 
