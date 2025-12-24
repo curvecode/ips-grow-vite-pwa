@@ -1,7 +1,8 @@
 import type { DailyBuy } from "@common/daily-buy.model";
-import { addDailyBuys as apiAddDailyBuys, checkApiHealth } from "./api";
+import { addDailyBuys as apiAddDailyBuys, deleteDailyBuy as apiDeleteDailyBuy, checkApiHealth } from "./api";
 
 const PENDING_SYNC_KEY = "pendingSyncEntries";
+const PENDING_DELETES_KEY = "pendingDeleteIds";
 const SYNC_IN_PROGRESS_KEY = "syncInProgress";
 
 /**
@@ -38,6 +39,41 @@ export function clearPendingSync(): void {
 }
 
 /**
+ * Get pending delete IDs from localStorage
+ */
+export function getPendingDeleteIds(): string[] {
+  const stored = localStorage.getItem(PENDING_DELETES_KEY);
+  return stored ? JSON.parse(stored) : [];
+}
+
+/**
+ * Add entry ID to pending delete queue
+ */
+export function addToPendingDeletes(id: string): void {
+  const pending = getPendingDeleteIds();
+  if (!pending.includes(id)) {
+    pending.push(id);
+    localStorage.setItem(PENDING_DELETES_KEY, JSON.stringify(pending));
+  }
+}
+
+/**
+ * Remove entry ID from pending delete queue
+ */
+export function removeFromPendingDeletes(id: string): void {
+  const pending = getPendingDeleteIds();
+  const filtered = pending.filter(deleteId => deleteId !== id);
+  localStorage.setItem(PENDING_DELETES_KEY, JSON.stringify(filtered));
+}
+
+/**
+ * Clear all pending deletes
+ */
+export function clearPendingDeletes(): void {
+  localStorage.removeItem(PENDING_DELETES_KEY);
+}
+
+/**
  * Check if sync is in progress
  */
 function isSyncInProgress(): boolean {
@@ -66,8 +102,10 @@ export async function syncPendingEntries(): Promise<number> {
     return 0;
   }
 
-  const pending = getPendingSyncEntries();
-  if (pending.length === 0) {
+  const pendingAdds = getPendingSyncEntries();
+  const pendingDeletes = getPendingDeleteIds();
+  
+  if (pendingAdds.length === 0 && pendingDeletes.length === 0) {
     return 0;
   }
 
@@ -79,33 +117,63 @@ export async function syncPendingEntries(): Promise<number> {
   }
 
   setSyncInProgress(true);
+  let totalSynced = 0;
 
   try {
-    // Try to sync all pending entries
-    const syncedEntries: DailyBuy[] = [];
-    const failedEntries: DailyBuy[] = [];
+    // Sync adds first
+    if (pendingAdds.length > 0) {
+      const syncedEntries: DailyBuy[] = [];
+      const failedEntries: DailyBuy[] = [];
 
-    for (const entry of pending) {
-      try {
-        await apiAddDailyBuys(entry);
-        syncedEntries.push(entry);
-        removeFromPendingSync(entry.id);
-      } catch (error) {
-        console.error(`Failed to sync entry ${entry.id}:`, error);
-        failedEntries.push(entry);
+      for (const entry of pendingAdds) {
+        try {
+          await apiAddDailyBuys(entry);
+          syncedEntries.push(entry);
+          removeFromPendingSync(entry.id);
+          totalSynced++;
+        } catch (error) {
+          console.error(`Failed to sync entry ${entry.id}:`, error);
+          failedEntries.push(entry);
+        }
       }
+
+      // If some failed, keep them in pending
+      if (failedEntries.length > 0) {
+        localStorage.setItem(PENDING_SYNC_KEY, JSON.stringify(failedEntries));
+      }
+
+      console.log(`Synced ${syncedEntries.length} of ${pendingAdds.length} add entries`);
     }
 
-    // If some failed, keep them in pending
-    if (failedEntries.length > 0) {
-      localStorage.setItem(PENDING_SYNC_KEY, JSON.stringify(failedEntries));
+    // Sync deletes
+    if (pendingDeletes.length > 0) {
+      const syncedDeletes: string[] = [];
+      const failedDeletes: string[] = [];
+
+      for (const id of pendingDeletes) {
+        try {
+          await apiDeleteDailyBuy(id);
+          syncedDeletes.push(id);
+          removeFromPendingDeletes(id);
+          totalSynced++;
+        } catch (error) {
+          console.error(`Failed to sync delete for ${id}:`, error);
+          failedDeletes.push(id);
+        }
+      }
+
+      // If some failed, keep them in pending
+      if (failedDeletes.length > 0) {
+        localStorage.setItem(PENDING_DELETES_KEY, JSON.stringify(failedDeletes));
+      }
+
+      console.log(`Synced ${syncedDeletes.length} of ${pendingDeletes.length} delete operations`);
     }
 
-    console.log(`Synced ${syncedEntries.length} of ${pending.length} entries`);
-    return syncedEntries.length;
+    return totalSynced;
   } catch (error) {
     console.error("Error during sync:", error);
-    return 0;
+    return totalSynced;
   } finally {
     setSyncInProgress(false);
   }

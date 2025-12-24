@@ -1,16 +1,28 @@
 import { defineConfig, loadEnv } from "vite";
 import path from "path";
+import { visualizer } from "rollup-plugin-visualizer";
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
-  const env = loadEnv(mode, process.cwd(), "");
+  const env = loadEnv(mode, __dirname, "");
+  console.log("Mode:", mode);
+  console.log("Loading env from:", __dirname);
 
   // Parse APP_PORT from environment, default to 5173 if not set
-  const port = parseInt(env.APP_PORT || "5173", 10);
+  const port = parseInt(process.env.APP_PORT || env.APP_PORT || "5173", 10);
+  
 
   return {
+    plugins: [
+      visualizer({
+        open: true, // Auto-open in browser after build
+        filename: "dist/stats.html", // Output file
+        gzipSize: true, // Show gzip size
+        brotliSize: true, // Show brotli size
+      }),
+    ],
     resolve: {
       alias: {
         "@common": path.resolve(__dirname, "../common"),
@@ -19,8 +31,8 @@ export default defineConfig(({ mode }) => {
     server: {
       port: port,
       open: true,
+      // Let Vite manage HMR host/port automatically to avoid mismatches
       hmr: {
-        // Enable HMR for better development experience
         overlay: true,
       },
     },

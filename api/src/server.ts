@@ -11,10 +11,10 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS configuration - allow requests from UI on port 5173
+// CORS configuration - allow requests from UI on localhost (any port)
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: [/^http:\/\/localhost:\d+$/],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "X-Auth-Type"],

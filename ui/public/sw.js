@@ -3,9 +3,7 @@ const CACHE_NAME = 'daily-buy-tracker-v1';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/src/main.ts',
-  '/src/ui.ts',
-  '/src/style.css',
+  '/manifest.json'
 ];
 
 // Install event - cache resources

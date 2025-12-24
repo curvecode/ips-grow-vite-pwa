@@ -228,7 +228,11 @@ async function handleSubmit(e: Event) {
     description: (formDataObj.get("description") as string) || undefined,
     createdAt: new Date().toISOString(),
   };
-
+  if (!entry.quantity) {
+    console.error("[Form] Quantity is required!!!");
+    return;
+  }
+  
   // Always save to local storage first for immediate UI update
   saveEntry(entry);
 

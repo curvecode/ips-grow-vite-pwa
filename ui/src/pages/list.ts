@@ -1,4 +1,6 @@
 import type { DailyBuy } from "@common/daily-buy.model";
+import { deleteDailyBuy as apiDeleteDailyBuy, checkApiHealth } from "../api";
+import { addToPendingDeletes } from "../sync";
 
 /**
  * List Page Module
@@ -17,6 +19,40 @@ export function deleteEntry(id: string): void {
   const entries = getEntries();
   const filtered = entries.filter((e) => e.id !== id);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+}
+
+/**
+ * Delete entry with API sync
+ */
+export async function deleteEntryWithSync(id: string): Promise<void> {
+  // Always delete from local storage first for immediate UI update
+  deleteEntry(id);
+
+  // Try to delete from API if online
+  try {
+    console.log("[API] Attempting to delete entry", id);
+    const isOnline = await checkApiHealth();
+    console.log("[API] API health:", isOnline, "Navigator online:", navigator.onLine);
+
+    if (isOnline && navigator.onLine) {
+      try {
+        console.log("[API] Sending delete to API...");
+        await apiDeleteDailyBuy(id);
+        console.log("[API] ✅ Entry deleted from API successfully");
+      } catch (apiError) {
+        console.error("[API] ❌ Failed to delete from API, adding to pending:", apiError);
+        addToPendingDeletes(id);
+      }
+    } else {
+      // Offline - add to pending deletes queue
+      console.log("[API] ⚠️ Offline, adding to pending deletes");
+      addToPendingDeletes(id);
+    }
+  } catch (error) {
+    console.error("[API] ❌ Error checking API status:", error);
+    // If we can't check, assume offline and add to pending
+    addToPendingDeletes(id);
+  }
 }
 
 export function renderListPage(entries: DailyBuy[]): string {
@@ -111,11 +147,11 @@ export function setupListPageListeners(
   // Delete buttons
   const deleteButtons = document.querySelectorAll(".delete-btn");
   deleteButtons.forEach((btn) => {
-    btn.addEventListener("click", (e) => {
+    btn.addEventListener("click", async (e) => {
       const id = (e.currentTarget as HTMLElement).dataset.id;
       if (id) {
         if (confirm("Are you sure you want to delete this entry?")) {
-          deleteEntry(id);
+          await deleteEntryWithSync(id);
           onDelete(id);
           onRefresh();
         }

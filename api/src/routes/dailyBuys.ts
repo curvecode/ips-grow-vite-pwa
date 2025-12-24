@@ -1,5 +1,5 @@
 import { Router, type Request, Response } from "express";
-import { readDailyBuys, addDailyBuys } from "../storage";
+import { readDailyBuys, addDailyBuys, deleteDailyBuy } from "../storage";
 import type { DailyBuy } from "../../common/daily-buy.model";
 import type { RequestWithAuth } from "../types";
 
@@ -94,6 +94,37 @@ router.post("/", (req: RequestWithAuth, res: Response) => {
     res.status(500).json({
       success: false,
       error: "Failed to add daily buys",
+    });
+  }
+});
+
+/**
+ * DELETE /api/daily-buys/:id
+ * Delete a daily buy entry by ID
+ */
+router.delete("/:id", (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: "Entry ID is required",
+      });
+    }
+
+    const allEntries = deleteDailyBuy(id);
+
+    res.json({
+      success: true,
+      message: `Successfully deleted entry ${id}`,
+      totalCount: allEntries.length,
+    });
+  } catch (error) {
+    console.error("Error deleting daily buy:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to delete daily buy",
     });
   }
 });

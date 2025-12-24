@@ -73,6 +73,15 @@ export async function addDailyBuys(
 }
 
 /**
+ * Delete a daily buy entry from API
+ */
+export async function deleteDailyBuy(id: string): Promise<void> {
+  await apiRequest<void>(`/daily-buys/${id}`, {
+    method: "DELETE",
+  });
+}
+
+/**
  * Check if API is available
  */
 export async function checkApiHealth(): Promise<boolean> {

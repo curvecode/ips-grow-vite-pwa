@@ -57,3 +57,13 @@ export function addDailyBuys(newEntries: DailyBuy[]): DailyBuy[] {
   return updated;
 }
 
+/**
+ * Delete a daily buy entry by ID
+ */
+export function deleteDailyBuy(id: string): DailyBuy[] {
+  const existing = readDailyBuys();
+  const updated = existing.filter(entry => entry.id !== id);
+  writeDailyBuys(updated);
+  return updated;
+}
+
