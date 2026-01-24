@@ -11,10 +11,16 @@
     "build": "tsc && vite build",
     "build:staging": "tsc && vite build --mode staging",
     "build:prod": "tsc && vite build --mode production",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:report": "playwright show-report"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
+    "@playwright/test": "^1.57.0",
+    "@types/node": "^22.19.3",
     "rollup-plugin-visualizer": "^6.0.5",
     "typescript": "~5.9.3",
     "vite": "^7.2.4"
