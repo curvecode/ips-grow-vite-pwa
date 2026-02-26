@@ -1,0 +1,134 @@
+<h1>{{ title() }} - Writable Signals Examples</h1>
+
+<!-- Child Component Example -->
+<section style="margin: 20px 0; padding: 15px; border: 2px solid #28a745; border-radius: 5px">
+  <h2>Child Component with Signal Input</h2>
+  <p>Update the counter component from parent:</p>
+
+  <!-- Pass signals as inputs to child component -->
+  <app-counter
+    [label]="counterLabel()"
+    [initialValue]="counterInitialValue()"
+    (countChanged)="onChildCounterChanged($event)"
+  ></app-counter>
+
+  <div style="margin-top: 15px">
+    <p>Parent controls:</p>
+    <input
+      type="number"
+      [value]="counterInitialValue()"
+      (input)="updateChildCounterValue(+$any($event.target).value || 0)"
+      style="padding: 8px; margin-right: 5px; width: 100px"
+      placeholder="Value"
+    />
+
+    <input
+      type="text"
+      [value]="counterLabel()"
+      (input)="updateChildCounterLabel($any($event.target).value || '')"
+      style="padding: 8px; margin-left: 5px; width: 150px"
+      placeholder="Label"
+    />
+  </div>
+</section>
+
+<!-- Example 1: Counter Signal -->
+<section style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px">
+  <h2>Example 1: Counter Signal</h2>
+  <p>
+    Current count: <strong>{{ counter() }}</strong>
+  </p>
+  <p>
+    Doubled: <strong>{{ doubled() }}</strong>
+  </p>
+  <button (click)="increment()" style="padding: 8px 16px; margin-right: 5px">Increment</button>
+  <button (click)="decrement()" style="padding: 8px 16px">Decrement</button>
+</section>
+
+<!-- Example 2: String Signal -->
+<section style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px">
+  <h2>Example 2: String Signal</h2>
+  <p>
+    Message: <strong>{{ message() }}</strong>
+  </p>
+  <input
+    [value]="message()"
+    (input)="updateMessage($any($event.target).value || '')"
+    style="width: 100%; padding: 8px; font-size: 14px"
+    placeholder="Enter a message"
+  />
+</section>
+
+<!-- Example 3: Object Signal -->
+<section style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px">
+  <h2>Example 3: Object Signal (User)</h2>
+  <p>
+    Name: <strong>{{ user().name }}</strong>
+  </p>
+  <p>
+    Age: <strong>{{ user().age }}</strong>
+  </p>
+  <input
+    [value]="user().name"
+    (input)="updateUsername($any($event.target).value || '')"
+    style="width: 100%; padding: 8px; font-size: 14px"
+    placeholder="Update name"
+  />
+</section>
+
+<!-- Example 4: Array Signal (Todos) -->
+<section style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px">
+  <h2>Example 4: Array Signal (Todo List)</h2>
+  <ul style="list-style: none; padding: 0">
+    <li
+      *ngFor="let todo of todos()"
+      style="padding: 10px; margin: 5px 0; background: #f5f5f5; border-radius: 3px"
+    >
+      <input
+        type="checkbox"
+        [checked]="todo.completed"
+        (change)="toggleTodo(todo.id)"
+        style="margin-right: 8px"
+      />
+      <span [style.text-decoration]="todo.completed ? 'line-through' : 'none'">
+        {{ todo.text }}
+      </span>
+    </li>
+  </ul>
+  <input
+    #todoInput
+    type="text"
+    style="width: 100%; padding: 8px; font-size: 14px; margin-top: 10px"
+    placeholder="Add a new todo"
+    (keyup.enter)="addTodo(todoInput.value); todoInput.value = ''"
+  />
+  <button
+    (click)="addTodo(todoInput.value); todoInput.value = ''"
+    style="padding: 8px 16px; margin-top: 10px"
+  >
+    Add Todo
+  </button>
+</section>
+
+<!-- Explanation -->
+<section
+  style="
+    margin: 20px 0;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background: #f9f9f9;
+  "
+>
+  <h2>Understanding Writable Signals</h2>
+  <ul>
+    <li><strong>signal(value):</strong> Creates a writable signal with an initial value</li>
+    <li><strong>signal():</strong> In template, reads the current value</li>
+    <li><strong>.set(value):</strong> Replaces the entire value</li>
+    <li><strong>.update(fn):</strong> Updates based on current value</li>
+    <li><strong>computed():</strong> Creates derived values that auto-update</li>
+    <li><strong>WritableSignal&lt;T&gt;:</strong> Type for signals with get/set capabilities</li>
+    <li><strong>input():</strong> Signal input from parent component</li>
+    <li><strong>output():</strong> Emit events from child to parent</li>
+  </ul>
+</section>

@@ -1,0 +1,9 @@
+<form>
+  <label for="email">Email:</label>
+  <input type="email" id="email" [formField]="loginForm.email" />
+  <br /><br />
+  <label for="password">Password:</label>
+  <input type="password" id="password" [formField]="loginForm.password" />
+  <br /><br />
+  {{ loginModel().email }} - {{ loginModel().password }}
+</form>
