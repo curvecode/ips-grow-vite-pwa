@@ -1,6 +1,7 @@
-import type { DailyBuy } from "@common/daily-buy.model";
+import type { Request } from "express";
+import type { DailyBuy } from "./models/dailyBuy";
 
-export interface RequestWithAuth extends Express.Request {
+export interface RequestWithAuth extends Request {
   authType?: "authenticated" | "anonymous";
   sessionId?: string;
 }

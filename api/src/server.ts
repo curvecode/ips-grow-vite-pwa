@@ -3,6 +3,7 @@ import cors from "cors";
 import { authMiddleware } from "./middleware/auth";
 import { rateLimitMiddleware } from "./middleware/rateLimit";
 import dailyBuysRouter from "./routes/dailyBuys";
+import { getInterestHistorySummary, getInterestRates } from "./interestRates";
 
 const app: Express = express();
 const PORT = process.env.PORT || 3000;
@@ -14,10 +15,11 @@ app.use(express.urlencoded({ extended: true }));
 // CORS configuration - allow requests from UI on localhost (any port)
 app.use(
   cors({
-    origin: [/^http:\/\/localhost:\d+$/],
+    origin: [/^http:\/\/localhost:\d+$/, /^http:\/\/127\.0\.0\.1:\d+$/, /\.onrender\.com$/],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "X-Auth-Type"],
+    exposedHeaders: ["X-Data-Source", "X-Last-Crawl-At", "X-Selected-Term", "X-Selected-Source"],
   })
 );
 
@@ -27,6 +29,28 @@ app.set("trust proxy", true);
 // Health check endpoint (no auth/rate limit required)
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+app.get("/api/interest-rates", (req, res) => {
+  const termRaw = Number.parseInt(`${req.query.term ?? "12"}`, 10);
+  const sourceRaw = typeof req.query.source === "string" ? req.query.source : "thebank";
+
+  const result = getInterestRates(termRaw, sourceRaw);
+
+  res.setHeader("X-Data-Source", result.dataSource);
+  res.setHeader("X-Selected-Term", `${result.selectedTerm}`);
+  res.setHeader("X-Selected-Source", result.selectedSource);
+  if (result.lastCrawlAt) {
+    res.setHeader("X-Last-Crawl-At", result.lastCrawlAt);
+  }
+
+  res.json(result.data);
+});
+
+app.get("/api/history/summary", (req, res) => {
+  const sourceRaw = typeof req.query.source === "string" ? req.query.source : "thebank";
+  const result = getInterestHistorySummary(sourceRaw);
+  res.json(result);
 });
 
 // Apply rate limiting and auth middleware to all API routes

@@ -1,6 +1,6 @@
-import { Router, type Request, Response } from "express";
+import { Router, type Request, type Response } from "express";
 import { readDailyBuys, addDailyBuys, deleteDailyBuy } from "../storage";
-import type { DailyBuy } from "../../common/daily-buy.model";
+import type { DailyBuy } from "../models/dailyBuy";
 import type { RequestWithAuth } from "../types";
 
 const router = Router();
@@ -31,16 +31,17 @@ router.get("/", (req: Request, res: Response) => {
  * Add one or more daily buy entries
  * Body: DailyBuy | DailyBuy[]
  */
-router.post("/", (req: RequestWithAuth, res: Response) => {
+router.post("/", (req: RequestWithAuth, res: Response): void => {
   try {
     const body = req.body;
     
     // Validate request body
     if (!body) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: "Request body is required",
       });
+      return;
     }
 
     // Handle both single entry and array of entries
@@ -54,20 +55,22 @@ router.post("/", (req: RequestWithAuth, res: Response) => {
 
     // Validate entries
     if (entriesToAdd.length === 0) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: "At least one entry is required",
       });
+      return;
     }
 
     // Validate each entry
     for (const entry of entriesToAdd) {
       if (!entry.id || !entry.date || !entry.type) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: "Invalid entry: id, date, and type are required",
           entry,
         });
+        return;
       }
     }
 
@@ -102,15 +105,16 @@ router.post("/", (req: RequestWithAuth, res: Response) => {
  * DELETE /api/daily-buys/:id
  * Delete a daily buy entry by ID
  */
-router.delete("/:id", (req: Request, res: Response) => {
+router.delete("/:id", (req: Request, res: Response): void => {
   try {
     const { id } = req.params;
 
     if (!id) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: "Entry ID is required",
       });
+      return;
     }
 
     const allEntries = deleteDailyBuy(id);

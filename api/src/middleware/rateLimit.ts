@@ -1,4 +1,4 @@
-import type { Request, Response, NextFunction } from "express";
+import type { Response, NextFunction } from "express";
 import type { RequestWithAuth, RateLimitStore } from "../types";
 
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute in milliseconds

@@ -25,6 +25,20 @@ npm start
 ### Health Check
 - `GET /health` - Check server status
 
+### Interest Rates (for chart)
+- `GET /api/interest-rates?term=12&source=thebank`
+  - Query:
+    - `term`: `6` or `12` (default `12`)
+    - `source`: `thebank | laodong | techcombank` (default `thebank`)
+  - Response headers:
+    - `X-Data-Source`
+    - `X-Last-Crawl-At`
+    - `X-Selected-Term`
+    - `X-Selected-Source`
+
+- `GET /api/history/summary?source=thebank`
+  - Summary by source from `backend/data/interest_history.json`
+
 ### Daily Buys
 - `GET /api/daily-buys` - Get all daily buy entries
 - `POST /api/daily-buys` - Add one or more daily buy entries

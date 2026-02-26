@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
-import type { DailyBuy } from "../../common/daily-buy.model";
+import type { DailyBuy } from "./models/dailyBuy";
 
 const DATA_FILE = join(process.cwd(), "data", "daily-buys.json");
 const DATA_DIR = join(process.cwd(), "data");

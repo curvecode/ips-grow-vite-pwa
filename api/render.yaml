@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: ips-grow-node-api
+    branch: angular-21-demo
+    runtime: node
+    rootDir: api
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
