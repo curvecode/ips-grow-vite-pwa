@@ -1,4 +1,5 @@
-const API_URL = '/api/interest-rates';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/$/, '');
+const API_URL = API_BASE_URL ? `${API_BASE_URL}/api/interest-rates` : '/api/interest-rates';
 const POLLING_INTERVAL_MS = 5 * 60 * 1000;
 
 let timerId = null;

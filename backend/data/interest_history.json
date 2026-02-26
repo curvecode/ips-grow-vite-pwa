@@ -71,7 +71,7 @@
         "HSBC": 3.25,
         "DONGA BANK": 5.8
       },
-      "crawled_at": "2026-02-26T12:55:10",
+      "crawled_at": "2026-02-26T13:00:42",
       "terms": {
         "12": {
           "BIDV": 4.7,
@@ -134,7 +134,7 @@
               "DONGA BANK": 5.55
             }
           },
-          "crawled_at": "2026-02-26T12:55:10"
+          "crawled_at": "2026-02-26T13:00:42"
         },
         "techcombank": {
           "terms": {
