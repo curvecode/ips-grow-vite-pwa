@@ -4,7 +4,6 @@ services:
     branch: angular-21-demo
     runtime: python
     rootDir: backend
-    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/history/summary?source=thebank
@@ -14,7 +13,6 @@ services:
     branch: angular-21-demo
     runtime: static
     rootDir: frontend
-    plan: free
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
     envVars:
