@@ -1,0 +1,169 @@
+{
+  "snapshots": [
+    {
+      "month": "2026-01",
+      "rates": {
+        "BIDV": 4.5,
+        "VIETCOMBANK": 4.3,
+        "MBBANK": 4.9,
+        "VPBANK": 4.1,
+        "SCB": 3.7,
+        "SACOMBANK": 3.6,
+        "VIETINBANK": 5.7,
+        "SEABANK": 5.98,
+        "VIB": 4.1,
+        "ACB": 5.4,
+        "HSBC": 4.25,
+        "DONGA BANK": 4.8
+      },
+      "crawled_at": "2026-02-26T11:33:47",
+      "terms": {
+        "12": {
+          "BIDV": 4.5,
+          "VIETCOMBANK": 4.3,
+          "MBBANK": 4.9,
+          "VPBANK": 4.1,
+          "SCB": 3.7,
+          "SACOMBANK": 3.6,
+          "VIETINBANK": 5.7,
+          "SEABANK": 5.98,
+          "VIB": 4.1,
+          "ACB": 5.4,
+          "HSBC": 4.25,
+          "DONGA BANK": 4.8
+        }
+      },
+      "sources": {
+        "thebank": {
+          "terms": {
+            "12": {
+              "BIDV": 4.5,
+              "VIETCOMBANK": 4.3,
+              "MBBANK": 4.9,
+              "VPBANK": 4.1,
+              "SCB": 3.7,
+              "SACOMBANK": 3.6,
+              "VIETINBANK": 5.7,
+              "SEABANK": 5.98,
+              "VIB": 4.1,
+              "ACB": 5.4,
+              "HSBC": 4.25,
+              "DONGA BANK": 4.8
+            }
+          },
+          "crawled_at": "2026-02-26T11:33:47"
+        }
+      }
+    },
+    {
+      "month": "2026-02",
+      "rates": {
+        "BIDV": 4.7,
+        "VIETCOMBANK": 4.6,
+        "MBBANK": 5.0,
+        "VPBANK": 5.4,
+        "SCB": 3.7,
+        "SACOMBANK": 5.6,
+        "VIETINBANK": 4.7,
+        "SEABANK": 4.98,
+        "VIB": 5.1,
+        "ACB": 4.4,
+        "HSBC": 3.25,
+        "DONGA BANK": 5.8
+      },
+      "crawled_at": "2026-02-26T12:55:10",
+      "terms": {
+        "12": {
+          "BIDV": 4.7,
+          "VIETCOMBANK": 4.6,
+          "MBBANK": 5.0,
+          "VPBANK": 5.4,
+          "SCB": 3.7,
+          "SACOMBANK": 5.6,
+          "VIETINBANK": 4.7,
+          "SEABANK": 4.98,
+          "VIB": 5.1,
+          "ACB": 4.4,
+          "HSBC": 3.25,
+          "DONGA BANK": 5.8
+        },
+        "6": {
+          "BIDV": 3.0,
+          "VIETCOMBANK": 2.9,
+          "MBBANK": 4.3,
+          "VPBANK": 4.9,
+          "SCB": 2.9,
+          "SACOMBANK": 5.6,
+          "VIETINBANK": 3.0,
+          "SEABANK": 4.65,
+          "VIB": 4.8,
+          "ACB": 3.5,
+          "HSBC": 2.75,
+          "DONGA BANK": 5.55
+        }
+      },
+      "sources": {
+        "thebank": {
+          "terms": {
+            "12": {
+              "BIDV": 4.7,
+              "VIETCOMBANK": 4.6,
+              "MBBANK": 5.0,
+              "VPBANK": 5.4,
+              "SCB": 3.7,
+              "SACOMBANK": 5.6,
+              "VIETINBANK": 4.7,
+              "SEABANK": 4.98,
+              "VIB": 5.1,
+              "ACB": 4.4,
+              "HSBC": 3.25,
+              "DONGA BANK": 5.8
+            },
+            "6": {
+              "BIDV": 3.0,
+              "VIETCOMBANK": 2.9,
+              "MBBANK": 4.3,
+              "VPBANK": 4.9,
+              "SCB": 2.9,
+              "SACOMBANK": 5.6,
+              "VIETINBANK": 3.0,
+              "SEABANK": 4.65,
+              "VIB": 4.8,
+              "ACB": 3.5,
+              "HSBC": 2.75,
+              "DONGA BANK": 5.55
+            }
+          },
+          "crawled_at": "2026-02-26T12:55:10"
+        },
+        "techcombank": {
+          "terms": {
+            "6": {
+              "MBBANK": 4.7,
+              "VPBANK": 5.1,
+              "SEABANK": 5.2,
+              "VIB": 4.7,
+              "VIETCOMBANK": 3.5,
+              "VIETINBANK": 3.5,
+              "BIDV": 3.5,
+              "ACB": 3.5,
+              "SCB": 2.9
+            },
+            "12": {
+              "MBBANK": 5.3,
+              "VPBANK": 5.3,
+              "SEABANK": 5.5,
+              "VIB": 6.5,
+              "VIETCOMBANK": 5.2,
+              "VIETINBANK": 5.2,
+              "BIDV": 5.2,
+              "ACB": 4.4,
+              "SCB": 3.7
+            }
+          },
+          "crawled_at": "2026-02-26T12:54:41"
+        }
+      }
+    }
+  ]
+}
