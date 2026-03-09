@@ -130,9 +130,14 @@ function renderEntryItem(entry: DailyBuy): string {
           ${entry.quantity ? `<span>Qty: ${entry.quantity}</span>` : ""}
         </div>
       </div>
-      <button class="delete-btn" data-id="${
-        entry.id
-      }" aria-label="Delete entry">🗑️</button>
+      <div class="entry-actions">
+        <button class="edit-btn" data-id="${
+          entry.id
+        }" aria-label="Edit entry">✏️</button>
+        <button class="delete-btn" data-id="${
+          entry.id
+        }" aria-label="Delete entry">🗑️</button>
+      </div>
     </div>
   `;
 }
@@ -142,8 +147,21 @@ function renderEntryItem(entry: DailyBuy): string {
  */
 export function setupListPageListeners(
   onDelete: (id: string) => void,
-  onRefresh: () => void
+  onRefresh: () => void,
+  onEdit: (entry: DailyBuy) => void
 ): void {
+  // Edit buttons
+  const editButtons = document.querySelectorAll(".edit-btn");
+  editButtons.forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      const id = (e.currentTarget as HTMLElement).dataset.id;
+      const entry = getEntries().find((e) => e.id === id);
+      if (entry) {
+        onEdit(entry);
+      }
+    });
+  });
+
   // Delete buttons
   const deleteButtons = document.querySelectorAll(".delete-btn");
   deleteButtons.forEach((btn) => {

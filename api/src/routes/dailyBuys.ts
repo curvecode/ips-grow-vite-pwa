@@ -1,5 +1,5 @@
 import { Router, type Request, Response } from "express";
-import { readDailyBuys, addDailyBuys, deleteDailyBuy } from "../storage";
+import { readDailyBuys, addDailyBuys, deleteDailyBuy, updateDailyBuy } from "../storage";
 import type { DailyBuy } from "../../common/daily-buy.model";
 import type { RequestWithAuth } from "../types";
 
@@ -125,6 +125,50 @@ router.delete("/:id", (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: "Failed to delete daily buy",
+    });
+  }
+});
+
+/**
+ * PUT /api/daily-buys/:id
+ * Update an existing daily buy entry
+ */
+router.put("/:id", (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: "Entry ID is required",
+      });
+    }
+
+    if (!updateData) {
+      return res.status(400).json({
+        success: false,
+        error: "Update data is required",
+      });
+    }
+
+    // Ensure ID in body matches ID in URL if present
+    const updatedEntry = updateDailyBuy({
+      ...updateData,
+      id: id,
+    });
+
+    res.json({
+      success: true,
+      data: updatedEntry,
+      message: `Successfully updated entry ${id}`,
+    });
+  } catch (error: any) {
+    console.error("Error updating daily buy:", error);
+    const status = error.message?.includes("not found") ? 404 : 500;
+    res.status(status).json({
+      success: false,
+      error: error.message || "Failed to update daily buy",
     });
   }
 });

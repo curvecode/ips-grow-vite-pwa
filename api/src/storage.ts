@@ -67,3 +67,24 @@ export function deleteDailyBuy(id: string): DailyBuy[] {
   return updated;
 }
 
+/**
+ * Update an existing daily buy entry
+ */
+export function updateDailyBuy(updatedEntry: DailyBuy): DailyBuy {
+  const existing = readDailyBuys();
+  const index = existing.findIndex(entry => entry.id === updatedEntry.id);
+  
+  if (index === -1) {
+    throw new Error(`Entry with ID ${updatedEntry.id} not found`);
+  }
+
+  existing[index] = {
+    ...existing[index],
+    ...updatedEntry,
+    updatedAt: new Date().toISOString()
+  };
+
+  writeDailyBuys(existing);
+  return existing[index];
+}
+

@@ -11,6 +11,7 @@ export interface DailyBuy {
   description?: string;
   price?: number;
   quantity?: number;
+  image?: string;
   createdAt?: Date | string;
   updatedAt?: Date | string;
 }

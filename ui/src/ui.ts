@@ -50,6 +50,71 @@ export function renderApp(
   `;
 }
 
+export function renderImageUploadSection(existingImage?: string): string {
+  return `
+    <div class="form-group">
+      <label for="image">Image (optional) <span id="imageSize" class="image-size-badge"></span></label>
+      <div class="image-upload-wrapper">
+        <input 
+          type="file" 
+          id="imageInput" 
+          name="image" 
+          accept="image/*" 
+          style="display: none;"
+        />
+        <div class="image-buttons" id="imageOptions">
+          <button type="button" class="image-btn" id="uploadFileBtn">
+            <span>📁</span> Album
+          </button>
+          <button type="button" class="image-btn" id="takePhotoBtn">
+            <span>📷</span> Camera
+          </button>
+        </div>
+
+        <!-- Inline Camera View -->
+        <div id="cameraView" class="camera-view" style="display: none;">
+          <video id="video" autoplay playsinline></video>
+          <div class="camera-controls">
+            <button type="button" class="capture-btn" id="shutterBtn">
+              <span class="shutter-icon"></span>
+            </button>
+            <button type="button" class="close-camera-btn" id="cancelCameraBtn">✕</button>
+          </div>
+        </div>
+
+        <div id="imagePreview" class="image-preview ${
+          existingImage ? "active" : ""
+        }">
+          ${
+            existingImage
+              ? `<img src="${existingImage}" alt="Existing Photo" />`
+              : ""
+          }
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Requests camera permission from the user
+ */
+export async function requestCameraPermission(): Promise<boolean> {
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.warn("Camera API not supported in this browser");
+      return false;
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    // Stop the stream immediately,เราแค่ต้องการขอ permission
+    stream.getTracks().forEach((track) => track.stop());
+    return true;
+  } catch (err) {
+    console.error("Camera permission denied or error:", err);
+    return false;
+  }
+}
+
 export function renderAddPage(formData: Partial<DailyBuy>): string {
   return `
     <form class="form" id="dailyBuyForm">
@@ -100,6 +165,7 @@ export function renderAddPage(formData: Partial<DailyBuy>): string {
           step="0.01" 
           min="0" 
           placeholder="0.00"
+          value="${formData.price || ""}"
         />
       </div>
       
@@ -112,6 +178,7 @@ export function renderAddPage(formData: Partial<DailyBuy>): string {
           step="1" 
           min="1" 
           placeholder="1"
+          value="${formData.quantity || ""}"
         />
       </div>
       
@@ -122,10 +189,14 @@ export function renderAddPage(formData: Partial<DailyBuy>): string {
           name="description" 
           rows="3" 
           placeholder="Add a note..."
-        ></textarea>
+        >${formData.description || ""}</textarea>
       </div>
       
-      <button type="submit" class="submit-btn">Add Entry</button>
+      ${renderImageUploadSection(formData.image)}
+      
+      <button type="submit" class="submit-btn">${
+        formData.id ? "Save Entry" : "Add Entry"
+      }</button>
     </form>
   `;
 }

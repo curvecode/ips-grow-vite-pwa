@@ -73,6 +73,17 @@ export async function addDailyBuys(
 }
 
 /**
+ * Update an existing daily buy entry in API
+ */
+export async function updateDailyBuy(entry: DailyBuy): Promise<DailyBuy> {
+  const response = await apiRequest<DailyBuy>(`/daily-buys/${entry.id}`, {
+    method: "PUT",
+    body: JSON.stringify(entry),
+  });
+  return response.data!;
+}
+
+/**
  * Delete a daily buy entry from API
  */
 export async function deleteDailyBuy(id: string): Promise<void> {

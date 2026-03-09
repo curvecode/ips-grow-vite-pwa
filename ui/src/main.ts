@@ -4,11 +4,13 @@ import {
   renderApp,
   renderAddPage,
   getCurrentDateTimeLocal,
+  requestCameraPermission,
   type Page,
 } from "./ui";
 import { initOfflineDetection } from "./offline";
 import {
   addDailyBuys as apiAddDailyBuys,
+  updateDailyBuy as apiUpdateDailyBuy,
   getDailyBuys as apiGetDailyBuys,
   checkApiHealth,
 } from "./api";
@@ -59,7 +61,12 @@ function getEntries(): DailyBuy[] {
 
 function saveEntry(entry: DailyBuy): void {
   const entries = getEntries();
-  entries.push(entry);
+  const index = entries.findIndex((e) => e.id === entry.id);
+  if (index !== -1) {
+    entries[index] = entry;
+  } else {
+    entries.push(entry);
+  }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
 }
 
@@ -161,6 +168,13 @@ async function setupEventListeners() {
   navTabs.forEach((tab) => {
     tab.addEventListener("click", () => {
       const page = (tab as HTMLElement).dataset.page as Page;
+      if (page === "add" && currentPage !== "add") {
+        // Reset form data when clicking the Add tab from another page
+        formData = {
+          type: "food",
+          date: getCurrentDateTimeLocal(),
+        };
+      }
       navigateTo(page);
     });
   });
@@ -169,6 +183,102 @@ async function setupEventListeners() {
   if (currentPage === "add") {
     const form = document.getElementById("dailyBuyForm") as HTMLFormElement;
     form?.addEventListener("submit", handleSubmit);
+
+    // Image Upload Logic
+    const imageInput = document.getElementById("imageInput") as HTMLInputElement;
+    const uploadFileBtn = document.getElementById("uploadFileBtn");
+    const takePhotoBtn = document.getElementById("takePhotoBtn");
+    const imagePreview = document.getElementById("imagePreview");
+    const imageSizeDisplay = document.getElementById("imageSize");
+    const cameraView = document.getElementById("cameraView");
+    const imageOptions = document.getElementById("imageOptions");
+    const video = document.getElementById("video") as HTMLVideoElement;
+    const shutterBtn = document.getElementById("shutterBtn");
+    const cancelCameraBtn = document.getElementById("cancelCameraBtn");
+
+    let currentStream: MediaStream | null = null;
+
+    const stopCamera = () => {
+      if (currentStream) {
+        currentStream.getTracks().forEach((track) => track.stop());
+        currentStream = null;
+      }
+      if (cameraView) cameraView.style.display = "none";
+      if (imageOptions) imageOptions.style.display = "flex";
+    };
+
+    const updateImageSizeDisplay = (bytes: number) => {
+      if (imageSizeDisplay) {
+        const kb = (bytes / 1024).toFixed(1);
+        imageSizeDisplay.textContent = `${kb} KB`;
+        imageSizeDisplay.classList.add("active");
+      }
+    };
+
+    uploadFileBtn?.addEventListener("click", () => {
+      imageInput.removeAttribute("capture");
+      imageInput.click();
+    });
+
+    takePhotoBtn?.addEventListener("click", async () => {
+      const hasPermission = await requestCameraPermission();
+      if (hasPermission && cameraView && imageOptions && video) {
+        try {
+          currentStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "environment" },
+          });
+          video.srcObject = currentStream;
+          imageOptions.style.display = "none";
+          cameraView.style.display = "block";
+        } catch (err) {
+          console.error("Error starting camera:", err);
+          alert("Could not start camera.");
+        }
+      } else if (!hasPermission) {
+        alert("Camera permission is required to take photos.");
+      }
+    });
+
+    shutterBtn?.addEventListener("click", () => {
+      if (video && imagePreview) {
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(video, 0, 0);
+
+        const imageData = canvas.toDataURL("image/jpeg", 0.8);
+        imagePreview.innerHTML = `<img src="${imageData}" alt="Captured Photo" />`;
+        imagePreview.classList.add("active");
+        
+        // Save the captured image to formData for submission
+        formData.image = imageData;
+
+        // Calculate size for Base64 (approximate)
+        const approxBytes = Math.round((imageData.length * 3) / 4);
+        updateImageSizeDisplay(approxBytes);
+
+        stopCamera();
+      }
+    });
+
+    cancelCameraBtn?.addEventListener("click", stopCamera);
+
+    imageInput?.addEventListener("change", () => {
+      const file = imageInput.files?.[0];
+      if (file && imagePreview) {
+        // Clear any camera-captured image
+        delete formData.image;
+        
+        updateImageSizeDisplay(file.size);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          imagePreview.innerHTML = `<img src="${e.target?.result}" alt="Preview" />`;
+          imagePreview.classList.add("active");
+        };
+        reader.readAsDataURL(file);
+      }
+    });
   }
 
   // List page event listeners (lazy loaded)
@@ -181,6 +291,21 @@ async function setupEventListeners() {
       () => {
         // onRefresh callback
         renderAppView();
+      },
+      (entry: DailyBuy) => {
+        // onEdit callback
+        formData = { ...entry };
+        // Format date for datetime-local input
+        if (typeof entry.date === "string") {
+          const d = new Date(entry.date);
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, "0");
+          const day = String(d.getDate()).padStart(2, "0");
+          const hours = String(d.getHours()).padStart(2, "0");
+          const minutes = String(d.getMinutes()).padStart(2, "0");
+          formData.date = `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+        navigateTo("add");
       }
     );
   }
@@ -215,7 +340,7 @@ async function handleSubmit(e: Event) {
   const date = new Date(dateTimeLocal).toISOString();
 
   const entry: DailyBuy = {
-    id: crypto.randomUUID(),
+    id: (formData.id as string) || crypto.randomUUID(),
     date: date,
     type: formDataObj.get("type") as BuyType,
     amount: 0, // Default value since amount field is removed
@@ -226,8 +351,24 @@ async function handleSubmit(e: Event) {
       ? parseInt(formDataObj.get("quantity") as string)
       : undefined,
     description: (formDataObj.get("description") as string) || undefined,
-    createdAt: new Date().toISOString(),
+    createdAt: formData.createdAt || new Date().toISOString(),
+    updatedAt: formData.id ? new Date().toISOString() : undefined,
   };
+
+  // Handle image if present
+  const imageInput = document.getElementById("imageInput") as HTMLInputElement;
+  if (imageInput && imageInput.files && imageInput.files[0]) {
+    const file = imageInput.files[0];
+    const reader = new FileReader();
+    const imageData = await new Promise<string>((resolve) => {
+      reader.onload = (e) => resolve(e.target?.result as string);
+      reader.readAsDataURL(file);
+    });
+    entry.image = imageData;
+  } else if (formData.image) {
+    // Keep existing image if no new one selected
+    entry.image = formData.image;
+  }
   if (!entry.quantity) {
     console.error("[Form] Quantity is required!!!");
     return;
@@ -251,8 +392,13 @@ async function handleSubmit(e: Event) {
     if (isOnline && navigator.onLine) {
       try {
         console.log("[API] Sending entry to API...");
-        await apiAddDailyBuys(entry);
-        console.log("[API] ✅ Entry synced to API successfully");
+        if (formData.id) {
+          await apiUpdateDailyBuy(entry);
+          console.log("[API] ✅ Entry updated in API successfully");
+        } else {
+          await apiAddDailyBuys(entry);
+          console.log("[API] ✅ Entry synced to API successfully");
+        }
       } catch (apiError) {
         console.error(
           "[API] ❌ Failed to sync to API, adding to pending:",
@@ -272,10 +418,22 @@ async function handleSubmit(e: Event) {
   }
 
   // Reset form
+  const isEditing = !!formData.id;
   form.reset();
-  formData.date = getCurrentDateTimeLocal();
-  (document.getElementById("date") as HTMLInputElement).value = formData.date;
-  (document.getElementById("type") as HTMLSelectElement).value = "food";
+  const imagePreview = document.getElementById("imagePreview");
+  if (imagePreview) {
+    imagePreview.innerHTML = "";
+    imagePreview.classList.remove("active");
+  }
+  const imageSizeDisplay = document.getElementById("imageSize");
+  if (imageSizeDisplay) {
+    imageSizeDisplay.textContent = "";
+    imageSizeDisplay.classList.remove("active");
+  }
+  formData = {
+    type: "food",
+    date: getCurrentDateTimeLocal(),
+  };
 
   // Navigate to list page to show the new entry
   navigateTo("list");
