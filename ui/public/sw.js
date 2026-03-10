@@ -1,106 +1,91 @@
 // Service Worker for Daily Buy Tracker PWA
-const CACHE_NAME = 'daily-buy-tracker-v1';
+const CACHE_NAME = 'daily-buy-tracker-v2'; // Periodic version update
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json'
 ];
 
-// Install event - cache resources
+// Install event - cache initial resources and skip waiting
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache');
+        console.log('[SW] Caching shell assets');
         return cache.addAll(urlsToCache);
       })
   );
 });
 
-// Helper function to check if URL scheme is cacheable
-function isCacheableRequest(request) {
-  const url = new URL(request.url);
-  const scheme = url.protocol;
-  
-  // Only cache http:// and https:// requests
-  // Exclude chrome-extension://, chrome://, moz-extension://, etc.
-  if (scheme !== 'http:' && scheme !== 'https:') {
-    return false;
-  }
-  
-  // Only cache GET requests
-  if (request.method !== 'GET') {
-    return false;
-  }
-  
-  return true;
-}
-
-// Fetch event - serve from cache, fallback to network
-self.addEventListener('fetch', (event) => {
-  // Skip non-cacheable requests (chrome extensions, etc.)
-  if (!isCacheableRequest(event.request)) {
-    return; // Let browser handle it normally
-  }
-
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-        return fetch(event.request).then(
-          (response) => {
-            // Check if valid response
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
+// Activate event - clean up old caches and take control immediately
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    Promise.all([
+      self.clients.claim(),
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME) {
+              console.log('[SW] Deleting old cache:', cacheName);
+              return caches.delete(cacheName);
             }
-            
-            // Double-check request is still cacheable before caching
-            if (!isCacheableRequest(event.request)) {
-              return response;
-            }
-            
-            // Clone the response
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                try {
-                  cache.put(event.request, responseToCache);
-                } catch (error) {
-                  // Silently fail if caching is not possible
-                  console.warn('Failed to cache request:', event.request.url, error);
-                }
-              })
-              .catch((error) => {
-                // Silently fail if caching is not possible
-                console.warn('Failed to open cache:', error);
-              });
-            return response;
-          }
-        ).catch((error) => {
-          // Network error - return cached version if available
-          console.warn('Fetch failed, trying cache:', error);
-          return caches.match(event.request);
-        });
+          })
+        );
       })
+    ])
   );
 });
 
-// Activate event - clean up old caches
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
+// Helper function to check if a request should be cached
+function isCacheableRequest(request) {
+  const url = new URL(request.url);
+  
+  // Skip API requests - handled separately or via network
+  if (url.pathname.includes('/api/')) return false;
+
+  // Skip Vite dev server internal assets
+  if (url.pathname.includes('/@vite/') || url.search.includes('import')) return false;
+  if (url.hostname === 'localhost' && url.port === '5173') {
+    // During development, we mostly want network first or no cache
+  }
+
+  const scheme = url.protocol;
+  return (scheme === 'http:' || scheme === 'https:') && request.method === 'GET';
+}
+
+// Fetch event - Network First Strategy with Cache fallback
+self.addEventListener('fetch', (event) => {
+  if (!isCacheableRequest(event.request)) {
+    return;
+  }
+
+  event.respondWith(
+    // Try network first
+    fetch(event.request)
+      .then((response) => {
+        // If valid response, clone and cache it
+        if (response && response.status === 200 && response.type === 'basic') {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return response;
+      })
+      .catch(() => {
+        // If network fails (offline), try the cache
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
           }
-        })
-      );
-    })
+          // If both fail, we can return a custom offline page if we had one
+          return new Response('Network error occurred while offline', {
+            status: 404,
+            statusText: 'Network error'
+          });
+        });
+      })
   );
 });
 

@@ -153,6 +153,99 @@ async function renderAppView() {
 
   await setupEventListeners();
   updateThemeIcon();
+  updateAppInfo();
+}
+
+/**
+ * Update computer and geo-location information in the UI
+ */
+async function updateAppInfo() {
+  const compInfo = document.getElementById("computerInfo");
+  const locInfo = document.getElementById("locationInfo");
+
+  if (compInfo) {
+    const uaData = (navigator as any).userAgentData;
+    let platform = uaData?.platform || navigator.platform || "Unknown";
+    let platformVersion = "";
+
+    // Try to get high entropy values for platform version (requires modern browser)
+    if (uaData?.getHighEntropyValues) {
+      try {
+        const entropy = await uaData.getHighEntropyValues(["platformVersion"]);
+        platformVersion = entropy.platformVersion || "";
+      } catch (e) {
+        console.warn("[AppInfo] Could not fetch platform version");
+      }
+    }
+    
+    // Better browser and version detection
+    let browserName = "Unknown Browser";
+    let browserVersion = "";
+    
+    if (uaData?.brands) {
+      const brands = uaData.brands;
+      // Filter out "Not A;Brand" if possible
+      const mainBrand = brands.find((b: any) => !b.brand.includes("Not")) || brands[0];
+      browserName = mainBrand.brand;
+      browserVersion = mainBrand.version;
+    } else {
+      const ua = navigator.userAgent;
+      const match = ua.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i) || [];
+      if (/trident/i.test(match[1])) {
+        browserName = "IE";
+      } else if (match[1] === "Chrome") {
+        const temp = ua.match(/\b(OPR|Edge)\/(\d+)/);
+        if (temp != null) {
+          browserName = temp[1].replace("OPR", "Opera");
+        } else {
+          browserName = "Chrome";
+        }
+      } else {
+        browserName = match[1] || "Browser";
+      }
+      browserVersion = match[2] || "";
+    }
+    
+    const platformDisplay = platformVersion ? `${platform} ${platformVersion}` : platform;
+    compInfo.textContent = `${platformDisplay} · ${browserName}${browserVersion ? " " + browserVersion : ""}`;
+  }
+
+  if (locInfo) {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          
+          try {
+            // Use OpenStreetMap Nominatim for free reverse geocoding
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=en`,
+              {
+                headers: {
+                  "User-Agent": "DailyBuyTracker/1.0"
+                }
+              }
+            );
+            const data = await response.json();
+            const city = data.address.city || data.address.town || data.address.village || data.address.suburb || "Unknown City";
+            const country = data.address.country || "";
+            
+            locInfo.textContent = country ? `${city}, ${country}` : city;
+          } catch (error) {
+            console.error("[Geo] Reverse geocoding failed:", error);
+            locInfo.textContent = `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
+          }
+        },
+        (error) => {
+          locInfo.textContent = "Location disabled";
+          console.warn("[Geo] Error:", error.message);
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+      );
+    } else {
+      locInfo.textContent = "Unavailable";
+    }
+  }
 }
 
 async function setupEventListeners() {
@@ -418,7 +511,6 @@ async function handleSubmit(e: Event) {
   }
 
   // Reset form
-  const isEditing = !!formData.id;
   form.reset();
   const imagePreview = document.getElementById("imagePreview");
   if (imagePreview) {
@@ -495,13 +587,42 @@ function registerServiceWorker() {
         .register("/sw.js")
         .then((registration) => {
           console.log(
-            "ServiceWorker registration successful:",
+            "[SW] Registration successful:",
             registration.scope
           );
+
+          // Handle updates
+          registration.onupdatefound = () => {
+            const installingWorker = registration.installing;
+            if (installingWorker) {
+              installingWorker.onstatechange = () => {
+                if (installingWorker.state === "installed") {
+                  if (navigator.serviceWorker.controller) {
+                    // New content is available, but the user is currently using an older version
+                    console.log("[SW] New version available, please refresh.");
+                    // Optional: Show a "New version available" toast/alert
+                  } else {
+                    // Content is cached for offline use
+                    console.log("[SW] Content is cached for offline use.");
+                  }
+                }
+              };
+            }
+          };
         })
         .catch((error) => {
-          console.log("ServiceWorker registration failed:", error);
+          console.log("[SW] Registration failed:", error);
         });
+    });
+
+    // Reload the page when the controller changes (new SW takes control)
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!refreshing) {
+        refreshing = true;
+        console.log("[SW] Controller changed, reloading page...");
+        window.location.reload();
+      }
     });
   }
 }

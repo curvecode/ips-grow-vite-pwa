@@ -23,6 +23,16 @@ export function renderApp(
     <div class="app-container">
       <header class="header">
         <h1>${currentPage === "add" ? "Add Entry" : "Daily Buys"}</h1>
+        <div class="app-info-bar" id="appInfoBar">
+          <div class="info-group">
+            <span class="info-label">💻</span>
+            <span id="computerInfo">Detecting...</span>
+          </div>
+          <div class="info-group">
+            <span class="info-label">📍</span>
+            <span id="locationInfo">Detecting...</span>
+          </div>
+        </div>
         <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
           <span class="theme-icon">🌙</span>
         </button>

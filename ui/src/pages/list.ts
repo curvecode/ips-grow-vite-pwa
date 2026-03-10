@@ -149,7 +149,7 @@ export function setupListPageListeners(
   onDelete: (id: string) => void,
   onRefresh: () => void,
   onEdit: (entry: DailyBuy) => void
-): void {
+ ): void {
   // Edit buttons
   const editButtons = document.querySelectorAll(".edit-btn");
   editButtons.forEach((btn) => {
@@ -175,7 +175,7 @@ export function setupListPageListeners(
         }
       }
     });
-  });
+   });
 }
 
 // HMR support
