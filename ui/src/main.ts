@@ -20,6 +20,7 @@ import {
   syncPendingEntries,
   getPendingSyncEntries,
 } from "./sync";
+import { entriesStore, pageStore, syncStatusStore } from "./store";
 
 // Dynamic import for list page (lazy loading)
 let listPageModule: typeof import("./pages/list") | null = null;
@@ -93,6 +94,7 @@ async function loadEntriesFromAPI(): Promise<void> {
       if (newApiEntries.length > 0) {
         const merged = [...localEntries, ...newApiEntries];
         localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        entriesStore.set(merged); // Update store
         console.log(
           "[API] Merged",
           newApiEntries.length,
@@ -101,6 +103,7 @@ async function loadEntriesFromAPI(): Promise<void> {
       } else if (apiEntries.length > 0) {
         // If API has entries but local doesn't, use API entries
         localStorage.setItem(STORAGE_KEY, JSON.stringify(apiEntries));
+        entriesStore.set(apiEntries); // Update store
         console.log("[API] Loaded", apiEntries.length, "entries from API");
       } else {
         console.log("[API] No entries found in API");
@@ -119,9 +122,7 @@ async function loadEntriesFromAPI(): Promise<void> {
 let currentPage: Page = "add";
 
 async function navigateTo(page: Page) {
-  currentPage = page;
-  await renderAppView();
-  updateTabButtons();
+  pageStore.set(page);
 }
 
 // Form state
@@ -210,6 +211,69 @@ async function updateAppInfo() {
     compInfo.textContent = `${platformDisplay} · ${browserName}${browserVersion ? " " + browserVersion : ""}`;
   }
 
+  // Helper to update metric value
+  const setMetric = (id: string, value: string, icon?: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const valEl = el.querySelector(".metric-value");
+    const iconEl = el.querySelector(".metric-icon");
+    if (valEl) valEl.textContent = value;
+    if (icon && iconEl) iconEl.textContent = icon;
+  };
+
+  // 1. Battery Status
+  if ("getBattery" in navigator) {
+    try {
+      const battery = await (navigator as any).getBattery();
+      const updateBattery = () => {
+        const level = Math.round(battery.level * 100);
+        const icon = battery.charging ? "⚡" : level > 80 ? "🔋" : level > 20 ? "🪫" : "💀";
+        setMetric("batteryMetric", `${level}%`, icon);
+      };
+      updateBattery();
+      battery.addEventListener("levelchange", updateBattery);
+      battery.addEventListener("chargingchange", updateBattery);
+    } catch (e) {
+      setMetric("batteryMetric", "N/A");
+    }
+  }
+
+  // 2. Audio Status
+  if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const hasAudioOutput = devices.some(d => d.kind === "audiooutput");
+      setMetric("audioMetric", hasAudioOutput ? "Ready" : "None", hasAudioOutput ? "🔊" : "🔇");
+    } catch (e) {
+      setMetric("audioMetric", "N/A");
+    }
+  }
+
+  // 3. Fullscreen Status
+  const updateFullscreen = () => {
+    const isFull = !!document.fullscreenElement;
+    setMetric("fullscreenMetric", isFull ? "On" : "Off");
+  };
+  updateFullscreen();
+  document.addEventListener("fullscreenchange", updateFullscreen);
+
+  // 4. Bluetooth Status
+  if ("bluetooth" in navigator) {
+    try {
+      const available = await (navigator as any).bluetooth.getAvailability();
+      setMetric("bluetoothMetric", available ? "Avail" : "None");
+    } catch (e) {
+      setMetric("bluetoothMetric", "Off");
+    }
+  }
+
+  // 5. Keyboard Status
+  if ("keyboard" in navigator) {
+    setMetric("keyboardMetric", "Active");
+  } else {
+    setMetric("keyboardMetric", navigator.maxTouchPoints > 0 ? "Touch" : "Ready");
+  }
+
   if (locInfo) {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -237,7 +301,7 @@ async function updateAppInfo() {
           }
         },
         (error) => {
-          locInfo.textContent = "Location disabled";
+          locInfo.textContent = "Loc Disabled";
           console.warn("[Geo] Error:", error.message);
         },
         { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
@@ -404,17 +468,6 @@ async function setupEventListeners() {
   }
 }
 
-function updateTabButtons() {
-  const tabs = document.querySelectorAll(".nav-tab");
-  tabs.forEach((tab) => {
-    const page = (tab as HTMLElement).dataset.page;
-    if (page === currentPage) {
-      tab.classList.add("active");
-    } else {
-      tab.classList.remove("active");
-    }
-  });
-}
 
 function updateThemeIcon() {
   const icon = document.querySelector(".theme-icon");
@@ -543,39 +596,65 @@ async function initApp() {
   await loadEntriesFromAPI();
 
   // Merge pending sync entries into local view
-  const pending = getPendingSyncEntries();
-  console.log("[API] initApp: Pending sync entries:", pending.length);
-  if (pending.length > 0) {
+  const pending = await getPendingSyncEntries();
+  if (pending && pending.length > 0) {
     const localEntries = getEntries();
     const localIds = new Set(localEntries.map((e) => e.id));
-    const newPending = pending.filter((e) => !localIds.has(e.id));
+    const newPending = pending.filter((e) => e && !localIds.has(e.id));
     if (newPending.length > 0) {
       const merged = [...localEntries, ...newPending];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-      console.log(
-        "[API] Merged",
-        newPending.length,
-        "pending entries into view"
-      );
+      entriesStore.set(merged);
     }
   }
 
+  // Subscribe to page changes
+  pageStore.subscribe(async (page) => {
+    currentPage = page;
+    await renderAppView();
+  });
+
+  // Subscribe to entry changes to refresh view
+  entriesStore.subscribe(() => {
+    if (currentPage === "list") {
+      renderAppView();
+    }
+  });
+
+  // Subscribe to sync status
+  syncStatusStore.subscribe((status) => {
+    const statusBar = document.getElementById("syncStatusBar");
+    const statusText = statusBar?.querySelector(".sync-status-text");
+    if (!statusBar || !statusText) return;
+
+    statusBar.classList.remove("online", "offline", "syncing");
+    
+    if (status.isSyncing) {
+      statusBar.classList.add("syncing");
+      statusText.textContent = "Syncing...";
+    } else if (status.isOnline) {
+      statusBar.classList.add("online");
+      statusText.textContent = status.pendingCount > 0 
+        ? `${status.pendingCount} pending` 
+        : "Online";
+    } else {
+      statusBar.classList.add("offline");
+      statusText.textContent = "Offline";
+    }
+  });
+
+  // Initial render
   renderAppView();
 
   // Try to sync pending entries if online
   if (navigator.onLine) {
-    console.log("[API] initApp: Online, attempting to sync pending entries...");
+    syncStatusStore.update(s => ({ ...s, isSyncing: true }));
     syncPendingEntries().then((synced) => {
-      console.log("[API] initApp: Synced", synced, "pending entries");
+      syncStatusStore.update(s => ({ ...s, isSyncing: false }));
       if (synced > 0) {
-        // Reload entries from API after sync
-        loadEntriesFromAPI().then(() => {
-          renderAppView();
-        });
+        loadEntriesFromAPI();
       }
     });
-  } else {
-    console.log("[API] initApp: Offline, skipping sync");
   }
 }
 

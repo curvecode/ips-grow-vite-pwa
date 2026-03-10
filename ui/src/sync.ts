@@ -1,76 +1,46 @@
 import type { DailyBuy } from "@common/daily-buy.model";
-import { addDailyBuys as apiAddDailyBuys, deleteDailyBuy as apiDeleteDailyBuy, checkApiHealth } from "./api";
+import {
+  addDailyBuys as apiAddDailyBuys,
+  deleteDailyBuy as apiDeleteDailyBuy,
+  updateDailyBuy as apiUpdateDailyBuy,
+  checkApiHealth
+} from "./api";
+import {
+  getPendingOperations,
+  removePendingOperation,
+  addPendingOperation,
+} from "./db";
+import type { PendingOperation } from "./db";
 
-const PENDING_SYNC_KEY = "pendingSyncEntries";
-const PENDING_DELETES_KEY = "pendingDeleteIds";
+import { syncStatusStore } from "./store";
+
 const SYNC_IN_PROGRESS_KEY = "syncInProgress";
 
 /**
- * Get pending sync entries from localStorage
+ * Refresh the pending operations count from DB and update store
  */
-export function getPendingSyncEntries(): DailyBuy[] {
-  const stored = localStorage.getItem(PENDING_SYNC_KEY);
-  return stored ? JSON.parse(stored) : [];
+export async function refreshPendingCount(): Promise<number> {
+  const operations = await getPendingOperations();
+  syncStatusStore.update(s => ({ ...s, pendingCount: operations.length }));
+  return operations.length;
 }
 
 /**
- * Add entry to pending sync queue
+ * Add entry to sync queue
  */
-export function addToPendingSync(entry: DailyBuy): void {
-  const pending = getPendingSyncEntries();
-  pending.push(entry);
-  localStorage.setItem(PENDING_SYNC_KEY, JSON.stringify(pending));
+export async function addToPendingSync(entry: DailyBuy, type: "ADD" | "UPDATE" = "ADD"): Promise<void> {
+  console.log(`[Sync] Adding ${type} for ${entry.id} to storage`);
+  await addPendingOperation(entry.id, type, entry);
+  await refreshPendingCount();
 }
 
 /**
- * Remove entry from pending sync queue
+ * Add delete to sync queue
  */
-export function removeFromPendingSync(entryId: string): void {
-  const pending = getPendingSyncEntries();
-  const filtered = pending.filter((e) => e.id !== entryId);
-  localStorage.setItem(PENDING_SYNC_KEY, JSON.stringify(filtered));
-}
-
-/**
- * Clear all pending sync entries
- */
-export function clearPendingSync(): void {
-  localStorage.removeItem(PENDING_SYNC_KEY);
-}
-
-/**
- * Get pending delete IDs from localStorage
- */
-export function getPendingDeleteIds(): string[] {
-  const stored = localStorage.getItem(PENDING_DELETES_KEY);
-  return stored ? JSON.parse(stored) : [];
-}
-
-/**
- * Add entry ID to pending delete queue
- */
-export function addToPendingDeletes(id: string): void {
-  const pending = getPendingDeleteIds();
-  if (!pending.includes(id)) {
-    pending.push(id);
-    localStorage.setItem(PENDING_DELETES_KEY, JSON.stringify(pending));
-  }
-}
-
-/**
- * Remove entry ID from pending delete queue
- */
-export function removeFromPendingDeletes(id: string): void {
-  const pending = getPendingDeleteIds();
-  const filtered = pending.filter(deleteId => deleteId !== id);
-  localStorage.setItem(PENDING_DELETES_KEY, JSON.stringify(filtered));
-}
-
-/**
- * Clear all pending deletes
- */
-export function clearPendingDeletes(): void {
-  localStorage.removeItem(PENDING_DELETES_KEY);
+export async function addToPendingDeletes(id: string): Promise<void> {
+  console.log(`[Sync] Adding DELETE for ${id} to storage`);
+  await addPendingOperation(id, "DELETE");
+  await refreshPendingCount();
 }
 
 /**
@@ -92,110 +62,110 @@ function setSyncInProgress(value: boolean): void {
 }
 
 /**
- * Sync pending entries to API
- * Returns number of successfully synced entries
+ * Sync pending operations to API
  */
 export async function syncPendingEntries(): Promise<number> {
-  // Prevent concurrent syncs
   if (isSyncInProgress()) {
-    console.log("Sync already in progress, skipping...");
+    console.log("[Sync] Already in progress, skipping...");
     return 0;
   }
 
-  const pendingAdds = getPendingSyncEntries();
-  const pendingDeletes = getPendingDeleteIds();
-  
-  if (pendingAdds.length === 0 && pendingDeletes.length === 0) {
+  const operations = await getPendingOperations();
+  if (operations.length === 0) {
+    await refreshPendingCount();
     return 0;
   }
 
-  // Check if API is available
+  // Group operations by entryId to avoid redundant syncs
+  const lastOpsByEntryId: Record<string, PendingOperation> = {};
+  operations.forEach(op => {
+    lastOpsByEntryId[op.entryId] = op;
+  });
+
   const isOnline = await checkApiHealth();
+  syncStatusStore.update(s => ({ ...s, isOnline }));
+  
   if (!isOnline) {
-    console.log("API not available, cannot sync");
+    console.log("[Sync] API not reachable, cannot sync");
     return 0;
   }
 
   setSyncInProgress(true);
+  syncStatusStore.update(s => ({ ...s, isSyncing: true }));
   let totalSynced = 0;
 
   try {
-    // Sync adds first
-    if (pendingAdds.length > 0) {
-      const syncedEntries: DailyBuy[] = [];
-      const failedEntries: DailyBuy[] = [];
+    const sortedOps = Object.values(lastOpsByEntryId).sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
 
-      for (const entry of pendingAdds) {
-        try {
-          await apiAddDailyBuys(entry);
-          syncedEntries.push(entry);
-          removeFromPendingSync(entry.id);
-          totalSynced++;
-        } catch (error) {
-          console.error(`Failed to sync entry ${entry.id}:`, error);
-          failedEntries.push(entry);
+    for (const op of sortedOps) {
+      try {
+        console.log(`[Sync] Processing ${op.type} for ${op.entryId}`);
+        
+        switch (op.type) {
+          case "ADD":
+            await apiAddDailyBuys(op.data);
+            break;
+          case "UPDATE":
+            await apiUpdateDailyBuy(op.data);
+            break;
+          case "DELETE":
+            await apiDeleteDailyBuy(op.entryId);
+            break;
         }
-      }
 
-      // If some failed, keep them in pending
-      if (failedEntries.length > 0) {
-        localStorage.setItem(PENDING_SYNC_KEY, JSON.stringify(failedEntries));
+        // Remove ALL operations for this entryId from the DB once synced
+        const sameIdOps = operations.filter(o => o.entryId === op.entryId);
+        for (const sameOp of sameIdOps) {
+          await removePendingOperation(sameOp.id);
+        }
+        
+        totalSynced++;
+      } catch (error) {
+        console.error(`[Sync] Failed to process ${op.type} for ${op.entryId}:`, error);
       }
-
-      console.log(`Synced ${syncedEntries.length} of ${pendingAdds.length} add entries`);
     }
 
-    // Sync deletes
-    if (pendingDeletes.length > 0) {
-      const syncedDeletes: string[] = [];
-      const failedDeletes: string[] = [];
-
-      for (const id of pendingDeletes) {
-        try {
-          await apiDeleteDailyBuy(id);
-          syncedDeletes.push(id);
-          removeFromPendingDeletes(id);
-          totalSynced++;
-        } catch (error) {
-          console.error(`Failed to sync delete for ${id}:`, error);
-          failedDeletes.push(id);
-        }
-      }
-
-      // If some failed, keep them in pending
-      if (failedDeletes.length > 0) {
-        localStorage.setItem(PENDING_DELETES_KEY, JSON.stringify(failedDeletes));
-      }
-
-      console.log(`Synced ${syncedDeletes.length} of ${pendingDeletes.length} delete operations`);
+    if (totalSynced > 0) {
+      console.log(`[Sync] Successfully synced ${totalSynced} operations`);
     }
-
     return totalSynced;
   } catch (error) {
-    console.error("Error during sync:", error);
+    console.error("[Sync] Error during batch processing:", error);
     return totalSynced;
   } finally {
     setSyncInProgress(false);
+    syncStatusStore.update(s => ({ ...s, isSyncing: false }));
+    await refreshPendingCount();
   }
 }
 
 /**
- * Initialize sync on online event
+ * Initialize sync listeners
  */
 export function initSync(): void {
-  // Sync when coming online
   window.addEventListener("online", async () => {
-    console.log("Online, attempting to sync pending entries...");
+    console.log("[Sync] Back online, triggering sync...");
+    syncStatusStore.update(s => ({ ...s, isOnline: true }));
     await syncPendingEntries();
   });
 
-  // Try to sync immediately if online
+  window.addEventListener("offline", () => {
+    console.log("[Sync] Offline mode");
+    syncStatusStore.update(s => ({ ...s, isOnline: false }));
+  });
+
+  // Initial check
+  syncStatusStore.update(s => ({ ...s, isOnline: navigator.onLine }));
   if (navigator.onLine) {
-    checkApiHealth().then((isOnline) => {
-      if (isOnline) {
-        syncPendingEntries();
-      }
-    });
+    syncPendingEntries();
   }
+}
+
+// Re-export for compatibility if needed elsewhere
+export async function getPendingSyncEntries(): Promise<DailyBuy[]> {
+  const ops = await getPendingOperations();
+  return ops.filter(op => op.type !== "DELETE").map(op => op.data);
 }
 

@@ -32,6 +32,32 @@ export function renderApp(
             <span class="info-label">📍</span>
             <span id="locationInfo">Detecting...</span>
           </div>
+          <div class="info-metrics">
+            <div class="metric-item" id="batteryMetric" title="Battery Status">
+              <span class="metric-icon">🔋</span>
+              <span class="metric-value">--</span>
+            </div>
+            <div class="metric-item" id="audioMetric" title="Audio Status">
+              <span class="metric-icon">🔊</span>
+              <span class="metric-value">--</span>
+            </div>
+            <div class="metric-item" id="fullscreenMetric" title="Fullscreen Status">
+              <span class="metric-icon">📺</span>
+              <span class="metric-value">Off</span>
+            </div>
+            <div class="metric-item" id="bluetoothMetric" title="Bluetooth Status">
+              <span class="metric-icon">📡</span>
+              <span class="metric-value">--</span>
+            </div>
+            <div class="metric-item" id="keyboardMetric" title="Keyboard Status">
+              <span class="metric-icon">⌨️</span>
+              <span class="metric-value">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="sync-status-bar" id="syncStatusBar">
+          <span class="sync-status-dot"></span>
+          <span class="sync-status-text">Checking...</span>
         </div>
         <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
           <span class="theme-icon">🌙</span>

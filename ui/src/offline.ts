@@ -1,7 +1,7 @@
 // Offline detection and UI indicator
 export function initOfflineDetection() {
-  const offlineLabel = createOfflineLabel();
-  document.body.appendChild(offlineLabel);
+  // const offlineLabel = createOfflineLabel();
+  // document.body.appendChild(offlineLabel);
 
   // Listen for online/offline events
   window.addEventListener('online', () => {
@@ -51,7 +51,7 @@ function showNotification(message: string, type: 'success' | 'warning' | 'error'
   }
 
   // Also show in-app toast notification
-  showToast(message, type);
+  // showToast(message, type);
 }
 
 function showToast(message: string, type: 'success' | 'warning' | 'error') {
