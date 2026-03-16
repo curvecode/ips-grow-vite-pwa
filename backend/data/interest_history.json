@@ -71,7 +71,7 @@
         "HSBC": 3.25,
         "DONGA BANK": 5.8
       },
-      "crawled_at": "2026-02-26T13:36:19",
+      "crawled_at": "2026-02-28T23:55:43",
       "terms": {
         "12": {
           "BIDV": 4.7,
@@ -134,7 +134,7 @@
               "DONGA BANK": 5.55
             }
           },
-          "crawled_at": "2026-02-26T13:35:44"
+          "crawled_at": "2026-02-28T23:55:43"
         },
         "techcombank": {
           "terms": {
@@ -161,9 +161,48 @@
               "SCB": 3.7
             }
           },
-          "crawled_at": "2026-02-26T13:36:19"
+          "crawled_at": "2026-02-26T14:51:18"
         }
       }
+    },
+    {
+      "month": "2026-03",
+      "sources": {
+        "thebank": {
+          "terms": {
+            "6": {
+              "BIDV": 3.0,
+              "VIETCOMBANK": 2.9,
+              "MBBANK": 4.3,
+              "VPBANK": 4.9,
+              "SCB": 2.9,
+              "SACOMBANK": 5.6,
+              "VIETINBANK": 3.0,
+              "SEABANK": 4.65,
+              "VIB": 4.8,
+              "ACB": 3.5,
+              "HSBC": 2.75,
+              "DONGA BANK": 5.55
+            },
+            "12": {
+              "BIDV": 4.7,
+              "VIETCOMBANK": 4.6,
+              "MBBANK": 5.0,
+              "VPBANK": 5.4,
+              "SCB": 3.7,
+              "SACOMBANK": 5.6,
+              "VIETINBANK": 4.7,
+              "SEABANK": 4.98,
+              "VIB": 5.1,
+              "ACB": 4.4,
+              "HSBC": 3.25,
+              "DONGA BANK": 5.8
+            }
+          },
+          "crawled_at": "2026-03-02T09:05:46"
+        }
+      },
+      "crawled_at": "2026-03-02T09:05:46"
     }
   ]
 }
