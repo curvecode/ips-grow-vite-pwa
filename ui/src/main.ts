@@ -150,6 +150,7 @@ async function renderAppView() {
   await setupEventListeners();
   updateThemeIcon();
   updateAppInfo();
+  updateSyncStatusBar(syncStatusStore.get());
 }
 
 /**
@@ -496,6 +497,30 @@ function updateThemeIcon() {
   }
 }
 
+function updateSyncStatusBar(status: {
+  isOnline: boolean;
+  isSyncing: boolean;
+  pendingCount: number;
+}) {
+  const statusBar = document.getElementById("syncStatusBar");
+  const statusText = statusBar?.querySelector(".sync-status-text");
+  if (!statusBar || !statusText) return;
+
+  statusBar.classList.remove("online", "offline", "syncing");
+
+  if (status.isSyncing) {
+    statusBar.classList.add("syncing");
+    statusText.textContent = "Syncing...";
+  } else if (status.isOnline) {
+    statusBar.classList.add("online");
+    statusText.textContent =
+      status.pendingCount > 0 ? `${status.pendingCount} pending` : "Online";
+  } else {
+    statusBar.classList.add("offline");
+    statusText.textContent = "Offline";
+  }
+}
+
 async function handleSubmit(e: Event) {
   e.preventDefault();
   const form = e.target as HTMLFormElement;
@@ -661,23 +686,7 @@ async function initApp() {
 
   // Subscribe to sync status
   syncStatusStore.subscribe((status) => {
-    const statusBar = document.getElementById("syncStatusBar");
-    const statusText = statusBar?.querySelector(".sync-status-text");
-    if (!statusBar || !statusText) return;
-
-    statusBar.classList.remove("online", "offline", "syncing");
-
-    if (status.isSyncing) {
-      statusBar.classList.add("syncing");
-      statusText.textContent = "Syncing...";
-    } else if (status.isOnline) {
-      statusBar.classList.add("online");
-      statusText.textContent =
-        status.pendingCount > 0 ? `${status.pendingCount} pending` : "Online";
-    } else {
-      statusBar.classList.add("offline");
-      statusText.textContent = "Offline";
-    }
+    updateSyncStatusBar(status);
   });
 
   // Initial render
