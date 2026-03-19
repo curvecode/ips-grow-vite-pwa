@@ -546,6 +546,7 @@ body {
 
 .nav-tab.active {
   color: var(--tab-active);
+  background: var(--bg-secondary);
 }
 
 .nav-icon {

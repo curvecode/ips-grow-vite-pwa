@@ -19,7 +19,7 @@ function ensureDataDir() {
  */
 export function readDailyBuys(): DailyBuy[] {
   ensureDataDir();
-  
+
   if (!existsSync(DATA_FILE)) {
     return [];
   }
@@ -38,7 +38,7 @@ export function readDailyBuys(): DailyBuy[] {
  */
 export function writeDailyBuys(entries: DailyBuy[]): void {
   ensureDataDir();
-  
+
   try {
     writeFileSync(DATA_FILE, JSON.stringify(entries, null, 2), "utf-8");
   } catch (error) {
@@ -52,7 +52,9 @@ export function writeDailyBuys(entries: DailyBuy[]): void {
  */
 export function addDailyBuys(newEntries: DailyBuy[]): DailyBuy[] {
   const existing = readDailyBuys();
-  const updated = [...existing, ...newEntries];
+  const existingIds = new Set(existing.map((e) => e.id));
+  const uniqueNewEntries = newEntries.filter((e) => !existingIds.has(e.id));
+  const updated = [...existing, ...uniqueNewEntries];
   writeDailyBuys(updated);
   return updated;
 }
@@ -62,7 +64,7 @@ export function addDailyBuys(newEntries: DailyBuy[]): DailyBuy[] {
  */
 export function deleteDailyBuy(id: string): DailyBuy[] {
   const existing = readDailyBuys();
-  const updated = existing.filter(entry => entry.id !== id);
+  const updated = existing.filter((entry) => entry.id !== id);
   writeDailyBuys(updated);
   return updated;
 }
@@ -72,8 +74,8 @@ export function deleteDailyBuy(id: string): DailyBuy[] {
  */
 export function updateDailyBuy(updatedEntry: DailyBuy): DailyBuy {
   const existing = readDailyBuys();
-  const index = existing.findIndex(entry => entry.id === updatedEntry.id);
-  
+  const index = existing.findIndex((entry) => entry.id === updatedEntry.id);
+
   if (index === -1) {
     throw new Error(`Entry with ID ${updatedEntry.id} not found`);
   }
@@ -81,10 +83,9 @@ export function updateDailyBuy(updatedEntry: DailyBuy): DailyBuy {
   existing[index] = {
     ...existing[index],
     ...updatedEntry,
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
   };
 
   writeDailyBuys(existing);
   return existing[index];
 }
-

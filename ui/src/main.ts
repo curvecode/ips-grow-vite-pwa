@@ -121,6 +121,9 @@ let currentPage: Page = "add";
 
 async function navigateTo(page: Page) {
   pageStore.set(page);
+  // Update URL without triggering navigation
+  const url = page === "add" ? "/" : `/${page}`;
+  history.replaceState(null, "", url);
 }
 
 // Form state
@@ -608,6 +611,15 @@ async function initApp() {
   initSync();
   registerServiceWorker();
 
+  // Set initial page based on URL
+  const path = window.location.pathname;
+  if (path === "/list") {
+    currentPage = "list";
+  } else {
+    currentPage = "add";
+  }
+  pageStore.set(currentPage);
+
   // Load entries from API on startup
   console.log("[API] initApp: Loading entries from API...");
   await loadEntriesFromAPI();
@@ -629,6 +641,15 @@ async function initApp() {
   pageStore.subscribe(async (page) => {
     currentPage = page;
     await renderAppView();
+  });
+
+  // Handle browser navigation
+  window.addEventListener("popstate", () => {
+    const path = window.location.pathname;
+    const page = path === "/list" ? "list" : "add";
+    if (page !== currentPage) {
+      navigateTo(page);
+    }
   });
 
   // Subscribe to entry changes to refresh view

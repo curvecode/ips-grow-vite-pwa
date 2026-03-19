@@ -15,7 +15,6 @@ build/
 *.tsbuildinfo
 
 # API specific
-api/data/
 api/dist/
 api/*.log
 
