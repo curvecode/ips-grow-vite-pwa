@@ -21,9 +21,7 @@ import {
   getPendingSyncEntries,
 } from "./sync";
 import { entriesStore, pageStore, syncStatusStore } from "./store";
-
-// Dynamic import for list page (lazy loading)
-let listPageModule: typeof import("./pages/list") | null = null;
+import * as listPageModule from "./pages/list";
 
 // Theme management
 type Theme = "light" | "dark";
@@ -98,7 +96,7 @@ async function loadEntriesFromAPI(): Promise<void> {
         console.log(
           "[API] Merged",
           newApiEntries.length,
-          "new entries from API"
+          "new entries from API",
         );
       } else if (apiEntries.length > 0) {
         // If API has entries but local doesn't, use API entries
@@ -140,12 +138,6 @@ async function renderAppView() {
   if (currentPage === "add") {
     pageContent = renderAddPage(formData);
   } else {
-    // Lazy load list page module
-    if (!listPageModule) {
-      console.log("[Lazy Load] Loading list page module...");
-      listPageModule = await import("./pages/list");
-      console.log("[Lazy Load] List page module loaded");
-    }
     const entries = listPageModule.getEntries();
     pageContent = listPageModule.renderListPage(entries);
   }
@@ -178,20 +170,24 @@ async function updateAppInfo() {
         console.warn("[AppInfo] Could not fetch platform version");
       }
     }
-    
+
     // Better browser and version detection
     let browserName = "Unknown Browser";
     let browserVersion = "";
-    
+
     if (uaData?.brands) {
       const brands = uaData.brands;
       // Filter out "Not A;Brand" if possible
-      const mainBrand = brands.find((b: any) => !b.brand.includes("Not")) || brands[0];
+      const mainBrand =
+        brands.find((b: any) => !b.brand.includes("Not")) || brands[0];
       browserName = mainBrand.brand;
       browserVersion = mainBrand.version;
     } else {
       const ua = navigator.userAgent;
-      const match = ua.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i) || [];
+      const match =
+        ua.match(
+          /(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i,
+        ) || [];
       if (/trident/i.test(match[1])) {
         browserName = "IE";
       } else if (match[1] === "Chrome") {
@@ -206,8 +202,10 @@ async function updateAppInfo() {
       }
       browserVersion = match[2] || "";
     }
-    
-    const platformDisplay = platformVersion ? `${platform} ${platformVersion}` : platform;
+
+    const platformDisplay = platformVersion
+      ? `${platform} ${platformVersion}`
+      : platform;
     compInfo.textContent = `${platformDisplay} · ${browserName}${browserVersion ? " " + browserVersion : ""}`;
   }
 
@@ -227,7 +225,13 @@ async function updateAppInfo() {
       const battery = await (navigator as any).getBattery();
       const updateBattery = () => {
         const level = Math.round(battery.level * 100);
-        const icon = battery.charging ? "⚡" : level > 80 ? "🔋" : level > 20 ? "🪫" : "💀";
+        const icon = battery.charging
+          ? "⚡"
+          : level > 80
+            ? "🔋"
+            : level > 20
+              ? "🪫"
+              : "💀";
         setMetric("batteryMetric", `${level}%`, icon);
       };
       updateBattery();
@@ -242,8 +246,12 @@ async function updateAppInfo() {
   if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
-      const hasAudioOutput = devices.some(d => d.kind === "audiooutput");
-      setMetric("audioMetric", hasAudioOutput ? "Ready" : "None", hasAudioOutput ? "🔊" : "🔇");
+      const hasAudioOutput = devices.some((d) => d.kind === "audiooutput");
+      setMetric(
+        "audioMetric",
+        hasAudioOutput ? "Ready" : "None",
+        hasAudioOutput ? "🔊" : "🔇",
+      );
     } catch (e) {
       setMetric("audioMetric", "N/A");
     }
@@ -271,7 +279,10 @@ async function updateAppInfo() {
   if ("keyboard" in navigator) {
     setMetric("keyboardMetric", "Active");
   } else {
-    setMetric("keyboardMetric", navigator.maxTouchPoints > 0 ? "Touch" : "Ready");
+    setMetric(
+      "keyboardMetric",
+      navigator.maxTouchPoints > 0 ? "Touch" : "Ready",
+    );
   }
 
   if (locInfo) {
@@ -279,21 +290,26 @@ async function updateAppInfo() {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
-          
+
           try {
             // Use OpenStreetMap Nominatim for free reverse geocoding
             const response = await fetch(
               `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=en`,
               {
                 headers: {
-                  "User-Agent": "DailyBuyTracker/1.0"
-                }
-              }
+                  "User-Agent": "DailyBuyTracker/1.0",
+                },
+              },
             );
             const data = await response.json();
-            const city = data.address.city || data.address.town || data.address.village || data.address.suburb || "Unknown City";
+            const city =
+              data.address.city ||
+              data.address.town ||
+              data.address.village ||
+              data.address.suburb ||
+              "Unknown City";
             const country = data.address.country || "";
-            
+
             locInfo.textContent = country ? `${city}, ${country}` : city;
           } catch (error) {
             console.error("[Geo] Reverse geocoding failed:", error);
@@ -304,7 +320,7 @@ async function updateAppInfo() {
           locInfo.textContent = "Loc Disabled";
           console.warn("[Geo] Error:", error.message);
         },
-        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 },
       );
     } else {
       locInfo.textContent = "Unavailable";
@@ -342,7 +358,9 @@ async function setupEventListeners() {
     form?.addEventListener("submit", handleSubmit);
 
     // Image Upload Logic
-    const imageInput = document.getElementById("imageInput") as HTMLInputElement;
+    const imageInput = document.getElementById(
+      "imageInput",
+    ) as HTMLInputElement;
     const uploadFileBtn = document.getElementById("uploadFileBtn");
     const takePhotoBtn = document.getElementById("takePhotoBtn");
     const imagePreview = document.getElementById("imagePreview");
@@ -407,7 +425,7 @@ async function setupEventListeners() {
         const imageData = canvas.toDataURL("image/jpeg", 0.8);
         imagePreview.innerHTML = `<img src="${imageData}" alt="Captured Photo" />`;
         imagePreview.classList.add("active");
-        
+
         // Save the captured image to formData for submission
         formData.image = imageData;
 
@@ -426,7 +444,7 @@ async function setupEventListeners() {
       if (file && imagePreview) {
         // Clear any camera-captured image
         delete formData.image;
-        
+
         updateImageSizeDisplay(file.size);
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -463,11 +481,10 @@ async function setupEventListeners() {
           formData.date = `${year}-${month}-${day}T${hours}:${minutes}`;
         }
         navigateTo("add");
-      }
+      },
     );
   }
 }
-
 
 function updateThemeIcon() {
   const icon = document.querySelector(".theme-icon");
@@ -519,7 +536,7 @@ async function handleSubmit(e: Event) {
     console.error("[Form] Quantity is required!!!");
     return;
   }
-  
+
   // Always save to local storage first for immediate UI update
   saveEntry(entry);
 
@@ -532,7 +549,7 @@ async function handleSubmit(e: Event) {
       "[API] API health:",
       isOnline,
       "Navigator online:",
-      navigator.onLine
+      navigator.onLine,
     );
 
     if (isOnline && navigator.onLine) {
@@ -548,19 +565,19 @@ async function handleSubmit(e: Event) {
       } catch (apiError) {
         console.error(
           "[API] ❌ Failed to sync to API, adding to pending:",
-          apiError
+          apiError,
         );
-        addToPendingSync(entry);
+        addToPendingSync(entry, formData.id ? "UPDATE" : "ADD");
       }
     } else {
       // Offline - add to pending sync queue
       console.log("[API] ⚠️ Offline, adding to pending sync");
-      addToPendingSync(entry);
+      addToPendingSync(entry, formData.id ? "UPDATE" : "ADD");
     }
   } catch (error) {
     console.error("[API] ❌ Error checking API status:", error);
     // If we can't check, assume offline and add to pending
-    addToPendingSync(entry);
+    addToPendingSync(entry, formData.id ? "UPDATE" : "ADD");
   }
 
   // Reset form
@@ -628,15 +645,14 @@ async function initApp() {
     if (!statusBar || !statusText) return;
 
     statusBar.classList.remove("online", "offline", "syncing");
-    
+
     if (status.isSyncing) {
       statusBar.classList.add("syncing");
       statusText.textContent = "Syncing...";
     } else if (status.isOnline) {
       statusBar.classList.add("online");
-      statusText.textContent = status.pendingCount > 0 
-        ? `${status.pendingCount} pending` 
-        : "Online";
+      statusText.textContent =
+        status.pendingCount > 0 ? `${status.pendingCount} pending` : "Online";
     } else {
       statusBar.classList.add("offline");
       statusText.textContent = "Offline";
@@ -648,9 +664,9 @@ async function initApp() {
 
   // Try to sync pending entries if online
   if (navigator.onLine) {
-    syncStatusStore.update(s => ({ ...s, isSyncing: true }));
+    syncStatusStore.update((s) => ({ ...s, isSyncing: true }));
     syncPendingEntries().then((synced) => {
-      syncStatusStore.update(s => ({ ...s, isSyncing: false }));
+      syncStatusStore.update((s) => ({ ...s, isSyncing: false }));
       if (synced > 0) {
         loadEntriesFromAPI();
       }
@@ -665,10 +681,7 @@ function registerServiceWorker() {
       navigator.serviceWorker
         .register("/sw.js")
         .then((registration) => {
-          console.log(
-            "[SW] Registration successful:",
-            registration.scope
-          );
+          console.log("[SW] Registration successful:", registration.scope);
 
           // Handle updates
           registration.onupdatefound = () => {

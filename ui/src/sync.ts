@@ -76,11 +76,54 @@ export async function syncPendingEntries(): Promise<number> {
     return 0;
   }
 
-  // Group operations by entryId to avoid redundant syncs
-  const lastOpsByEntryId: Record<string, PendingOperation> = {};
-  operations.forEach(op => {
-    lastOpsByEntryId[op.entryId] = op;
-  });
+  // 1. Sort all operations by timestamp to ensure chronological order
+  const chronologicalOps = [...operations].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+
+  // 2. Group and collapse operations by entryId to avoid redundant syncs
+  const collapsedOps: Record<string, PendingOperation> = {};
+  for (const op of chronologicalOps) {
+    const existing = collapsedOps[op.entryId];
+    if (!existing) {
+      collapsedOps[op.entryId] = op;
+      continue;
+    }
+
+    // Collapse logic:
+    // - If we have an existing ADD, all subsequent operations remain an ADD with latest data
+    // - Unless the final operation is DELETE, in which case it stays DELETE
+    if (op.type === "DELETE") {
+      collapsedOps[op.entryId] = op;
+    } else {
+      const type = existing.type === "ADD" ? "ADD" : op.type;
+      collapsedOps[op.entryId] = { ...op, type };
+    }
+  }
+
+  // 3. Prepare final list of operations to sync
+  // Items that were added and then deleted while offline have no effect on the server
+  const finalOpsToSync: PendingOperation[] = [];
+  for (const entryId of Object.keys(collapsedOps)) {
+    const group = operations.filter(o => o.entryId === entryId);
+    const hasAdd = group.some(o => o.type === "ADD");
+    const op = collapsedOps[entryId];
+
+    if (hasAdd && op.type === "DELETE") {
+      console.log(`[Sync] Skipping ${entryId}: Added and deleted while offline`);
+      // Cleanup IndexedDB for these skipped operations
+      for (const sameOp of group) {
+        await removePendingOperation(sameOp.id);
+      }
+      continue;
+    }
+    finalOpsToSync.push(op);
+  }
+
+  // 4. Sort final operations by timestamp to preserve overall chronological logic
+  const sortedOps = finalOpsToSync.sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
 
   const isOnline = await checkApiHealth();
   syncStatusStore.update(s => ({ ...s, isOnline }));
@@ -95,10 +138,6 @@ export async function syncPendingEntries(): Promise<number> {
   let totalSynced = 0;
 
   try {
-    const sortedOps = Object.values(lastOpsByEntryId).sort(
-      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    );
-
     for (const op of sortedOps) {
       try {
         console.log(`[Sync] Processing ${op.type} for ${op.entryId}`);
@@ -115,7 +154,7 @@ export async function syncPendingEntries(): Promise<number> {
             break;
         }
 
-        // Remove ALL operations for this entryId from the DB once synced
+        // Remove ALL operations for this entryId from the DB once successfully synced
         const sameIdOps = operations.filter(o => o.entryId === op.entryId);
         for (const sameOp of sameIdOps) {
           await removePendingOperation(sameOp.id);
@@ -124,15 +163,16 @@ export async function syncPendingEntries(): Promise<number> {
         totalSynced++;
       } catch (error) {
         console.error(`[Sync] Failed to process ${op.type} for ${op.entryId}:`, error);
+        // If it fails, we keep it in the DB to try again later
       }
     }
 
     if (totalSynced > 0) {
-      console.log(`[Sync] Successfully synced ${totalSynced} operations`);
+      console.log(`[Sync] Successfully synced ${totalSynced} items`);
     }
     return totalSynced;
   } catch (error) {
-    console.error("[Sync] Error during batch processing:", error);
+    console.error("[Sync] Error during processing:", error);
     return totalSynced;
   } finally {
     setSyncInProgress(false);
