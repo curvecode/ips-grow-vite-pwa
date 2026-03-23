@@ -51,7 +51,7 @@ function showNotification(message: string, type: 'success' | 'warning' | 'error'
   }
 
   // Also show in-app toast notification
-  // showToast(message, type);
+  showToast(message, type);
 }
 
 function showToast(message: string, type: 'success' | 'warning' | 'error') {
@@ -60,7 +60,7 @@ function showToast(message: string, type: 'success' | 'warning' | 'error') {
   toast.textContent = message;
   toast.style.cssText = `
     position: fixed;
-    top: 80px;
+    top: 10px;
     right: 20px;
     padding: 16px 24px;
     background: ${type === 'success' ? '#4caf50' : type === 'warning' ? '#ff9800' : '#f44336'};

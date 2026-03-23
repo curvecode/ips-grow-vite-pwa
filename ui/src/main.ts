@@ -112,19 +112,28 @@ function mergeEntries(
   );
 }
 
-function saveEntry(entry: DailyBuy): void {
-  const entries = getEntries();
-  const index = entries.findIndex((e) => e.id === entry.id);
+async function saveEntry(entry: DailyBuy): Promise<void> {
+  const previousEntries = [...getEntries()];
+  const nextEntries = [...previousEntries];
+  const index = nextEntries.findIndex((existingEntry) => existingEntry.id === entry.id);
+
   if (index !== -1) {
-    entries[index] = entry;
+    nextEntries[index] = entry;
   } else {
-    entries.push(entry);
+    nextEntries.push(entry);
   }
-  cachedEntries = [...entries];
-  entriesStore.set(cachedEntries);
-  void upsertEntry(entry).catch((error) => {
-    console.error("[DB] Failed to save entry to IndexedDB:", error);
-  });
+
+  cachedEntries = nextEntries;
+  entriesStore.set(nextEntries);
+
+  try {
+    await upsertEntry(entry);
+  } catch (error) {
+    cachedEntries = previousEntries;
+    entriesStore.set(previousEntries);
+    console.error("[DB] Failed to save entry to IndexedDB. Reverting local state:", error);
+    throw error;
+  }
 }
 
 /**
@@ -670,8 +679,14 @@ async function handleSubmit(e: Event) {
     return;
   }
 
-  // Always save to local storage first for immediate UI update
-  saveEntry(entry);
+  // Always save to local IndexedDB first for durable offline-first behavior.
+  // If local persistence fails, revert the optimistic UI change and stop.
+  try {
+    await saveEntry(entry);
+  } catch {
+    alert("Could not save this entry locally. Your change was reverted.");
+    return;
+  }
 
   // Try to send to API if online, otherwise add to pending sync
   console.log("[API] handleSubmit: Attempting to sync entry", entry.id);
