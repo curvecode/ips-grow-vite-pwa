@@ -22,6 +22,7 @@ import {
   syncPendingEntries,
   getPendingSyncEntries,
 } from "./sync";
+import { getAllEntries, replaceAllEntries, upsertEntry } from "./db";
 import { entriesStore, pageStore, syncStatusStore } from "./store";
 import * as listPageModule from "./pages/list";
 
@@ -52,17 +53,30 @@ function toggleTheme() {
   setTheme(current === "light" ? "dark" : "light");
 }
 
-// Storage management
-const STORAGE_KEY = "dailyBuyEntries";
+// Entry list storage is persisted in IndexedDB.
+// Keep an in-memory copy so existing render paths can remain synchronous.
+const LEGACY_STORAGE_KEY = "dailyBuyEntries";
+let cachedEntries: DailyBuy[] = [];
 
 function getEntries(): DailyBuy[] {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  return stored ? JSON.parse(stored) : [];
+  return cachedEntries;
+}
+
+function readLegacyEntries(): DailyBuy[] {
+  try {
+    const stored = localStorage.getItem(LEGACY_STORAGE_KEY);
+    return stored ? (JSON.parse(stored) as DailyBuy[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 function persistEntries(entries: DailyBuy[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  cachedEntries = entries;
   entriesStore.set(entries);
+  void replaceAllEntries(entries).catch((error) => {
+    console.error("[DB] Failed to persist entries to IndexedDB:", error);
+  });
 }
 
 function mergeEntries(
@@ -106,7 +120,11 @@ function saveEntry(entry: DailyBuy): void {
   } else {
     entries.push(entry);
   }
-  persistEntries(entries);
+  cachedEntries = [...entries];
+  entriesStore.set(cachedEntries);
+  void upsertEntry(entry).catch((error) => {
+    console.error("[DB] Failed to save entry to IndexedDB:", error);
+  });
 }
 
 /**
@@ -114,9 +132,9 @@ function saveEntry(entry: DailyBuy): void {
  */
 async function loadEntriesFromAPI(): Promise<void> {
   console.log("[API] loadEntriesFromAPI: Starting...");
-  const cachedEntries = getEntries();
+  const localEntries = getEntries();
 
-  entriesStore.set(cachedEntries);
+  entriesStore.set(localEntries);
 
   try {
     console.log("[API] Checking API health...");
@@ -133,7 +151,7 @@ async function loadEntriesFromAPI(): Promise<void> {
     const apiEntries = await apiGetDailyBuys();
     console.log("[API] Received entries from API:", apiEntries.length);
 
-    const mergedEntries = mergeEntries(cachedEntries, apiEntries);
+    const mergedEntries = mergeEntries(localEntries, apiEntries);
     persistEntries(mergedEntries);
 
     console.log(
@@ -389,7 +407,7 @@ async function updateAppInfo() {
             locInfo.textContent = country ? `${city}, ${country}` : city;
           } catch (error) {
             console.error("[Geo] Reverse geocoding failed:", error);
-            locInfo.textContent = `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
+            // locInfo.textContent = `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
           }
         },
         (error) => {
@@ -723,7 +741,7 @@ async function initApp() {
   initSync({
     onReconnect: async () => {
       // await loadEntriesFromAPI();
-      await loadEntriesFromAPI(); // this persists to localStorage via persistEntries()
+      await loadEntriesFromAPI(); // this persists to IndexedDB via persistEntries()
 
       if (currentPage === "list") {
         await renderAppView(); // immediate visual refresh
@@ -740,6 +758,21 @@ async function initApp() {
     currentPage = "add";
   }
   pageStore.set(currentPage);
+
+  cachedEntries = await getAllEntries();
+  if (cachedEntries.length === 0) {
+    const legacyEntries = readLegacyEntries();
+    if (legacyEntries.length > 0) {
+      cachedEntries = legacyEntries;
+      entriesStore.set(cachedEntries);
+      void replaceAllEntries(legacyEntries).catch((error) => {
+        console.error("[DB] Failed to migrate legacy entries:", error);
+      });
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+    }
+  } else {
+    entriesStore.set(cachedEntries);
+  }
 
   // Load entries from API on startup
   console.log("[API] initApp: Loading entries from API...");
@@ -773,7 +806,8 @@ async function initApp() {
   });
 
   // Subscribe to entry changes to refresh view
-  entriesStore.subscribe(() => {
+  entriesStore.subscribe((entries) => {
+    cachedEntries = entries;
     if (currentPage === "list") {
       renderAppView();
     }

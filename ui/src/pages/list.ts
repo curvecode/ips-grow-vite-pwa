@@ -1,5 +1,7 @@
 import type { DailyBuy } from "@common/daily-buy.model";
 import { deleteDailyBuy as apiDeleteDailyBuy, isApiReachable } from "../api";
+import { deleteStoredEntry } from "../db";
+import { entriesStore } from "../store";
 import { addToPendingDeletes } from "../sync";
 
 /**
@@ -7,26 +9,22 @@ import { addToPendingDeletes } from "../sync";
  * This module is lazy-loaded when the list page is navigated to
  */
 
-// Storage management for list page
-const STORAGE_KEY = "dailyBuyEntries";
-
 export function getEntries(): DailyBuy[] {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  return stored ? JSON.parse(stored) : [];
+  return entriesStore.get();
 }
 
-export function deleteEntry(id: string): void {
-  const entries = getEntries();
-  const filtered = entries.filter((e) => e.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+export async function deleteEntry(id: string): Promise<void> {
+  const filtered = entriesStore.get().filter((entry) => entry.id !== id);
+  entriesStore.set(filtered);
+  await deleteStoredEntry(id);
 }
 
 /**
  * Delete entry with API sync
  */
 export async function deleteEntryWithSync(id: string): Promise<void> {
-  // Always delete from local storage first for immediate UI update
-  deleteEntry(id);
+  // Always delete from IndexedDB first for immediate UI update
+  await deleteEntry(id);
 
   // Try to delete from API if online
   try {

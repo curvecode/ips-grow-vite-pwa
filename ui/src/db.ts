@@ -1,10 +1,13 @@
+import type { DailyBuy } from "@common/daily-buy.model";
+
 /**
  * IndexedDB utility for offline persistence
  */
 
 const DB_NAME = "DailyBuyTrackerDB";
-const STORE_NAME = "pendingOperations";
-const DB_VERSION = 1;
+const PENDING_STORE_NAME = "pendingOperations";
+const ENTRIES_STORE_NAME = "entries";
+const DB_VERSION = 2;
 
 export interface PendingOperation {
   id: string; // Operation ID (UUID)
@@ -28,8 +31,11 @@ function openDB(): Promise<IDBDatabase> {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: "id" });
+      if (!db.objectStoreNames.contains(PENDING_STORE_NAME)) {
+        db.createObjectStore(PENDING_STORE_NAME, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(ENTRIES_STORE_NAME)) {
+        db.createObjectStore(ENTRIES_STORE_NAME, { keyPath: "id" });
       }
     };
   });
@@ -45,8 +51,8 @@ export async function addPendingOperation(
 ): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
+    const transaction = db.transaction(PENDING_STORE_NAME, "readwrite");
+    const store = transaction.objectStore(PENDING_STORE_NAME);
 
     const operation: PendingOperation = {
       id: crypto.randomUUID(),
@@ -69,8 +75,8 @@ export async function addPendingOperation(
 export async function getPendingOperations(): Promise<PendingOperation[]> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, "readonly");
-    const store = transaction.objectStore(STORE_NAME);
+    const transaction = db.transaction(PENDING_STORE_NAME, "readonly");
+    const store = transaction.objectStore(PENDING_STORE_NAME);
     const request = store.getAll();
 
     request.onsuccess = () => resolve(request.result);
@@ -84,8 +90,8 @@ export async function getPendingOperations(): Promise<PendingOperation[]> {
 export async function removePendingOperation(id: string): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
+    const transaction = db.transaction(PENDING_STORE_NAME, "readwrite");
+    const store = transaction.objectStore(PENDING_STORE_NAME);
     const request = store.delete(id);
 
     request.onsuccess = () => resolve();
@@ -99,8 +105,8 @@ export async function removePendingOperation(id: string): Promise<void> {
 export async function clearAllPendingOperations(): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
+    const transaction = db.transaction(PENDING_STORE_NAME, "readwrite");
+    const store = transaction.objectStore(PENDING_STORE_NAME);
     const request = store.clear();
 
     request.onsuccess = () => resolve();
@@ -114,8 +120,8 @@ export async function clearAllPendingOperations(): Promise<void> {
 export async function markPendingOperationFailed(id: string, error: string): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
+    const transaction = db.transaction(PENDING_STORE_NAME, "readwrite");
+    const store = transaction.objectStore(PENDING_STORE_NAME);
     const getRequest = store.get(id);
 
     getRequest.onsuccess = () => {
@@ -136,5 +142,71 @@ export async function markPendingOperationFailed(id: string, error: string): Pro
     };
 
     getRequest.onerror = () => reject(getRequest.error);
+  });
+}
+
+export async function getAllEntries(): Promise<DailyBuy[]> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(ENTRIES_STORE_NAME, "readonly");
+    const store = transaction.objectStore(ENTRIES_STORE_NAME);
+    const request = store.getAll();
+
+    request.onsuccess = () => resolve(request.result as DailyBuy[]);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function upsertEntry(entry: DailyBuy): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(ENTRIES_STORE_NAME, "readwrite");
+    const store = transaction.objectStore(ENTRIES_STORE_NAME);
+    const request = store.put(entry);
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function replaceAllEntries(entries: DailyBuy[]): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(ENTRIES_STORE_NAME, "readwrite");
+    const store = transaction.objectStore(ENTRIES_STORE_NAME);
+    const clearRequest = store.clear();
+
+    clearRequest.onsuccess = () => {
+      if (entries.length === 0) {
+        resolve();
+        return;
+      }
+
+      let pendingWrites = entries.length;
+      for (const entry of entries) {
+        const putRequest = store.put(entry);
+        putRequest.onsuccess = () => {
+          pendingWrites -= 1;
+          if (pendingWrites === 0) {
+            resolve();
+          }
+        };
+        putRequest.onerror = () => reject(putRequest.error);
+      }
+    };
+
+    clearRequest.onerror = () => reject(clearRequest.error);
+  });
+}
+
+export async function deleteStoredEntry(id: string): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(ENTRIES_STORE_NAME, "readwrite");
+    const store = transaction.objectStore(ENTRIES_STORE_NAME);
+    const request = store.delete(id);
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
   });
 }

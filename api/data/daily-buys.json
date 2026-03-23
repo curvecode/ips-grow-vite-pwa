@@ -40,10 +40,10 @@
     "type": "coffee",
     "amount": 0,
     "price": 2,
-    "quantity": 1,
+    "quantity": 2,
     "description": "Milk coffee",
     "createdAt": "2026-03-19T23:22:05.093Z",
-    "updatedAt": "2026-03-19T23:22:15.589Z"
+    "updatedAt": "2026-03-23T09:53:27.536Z"
   },
   {
     "id": "383bffdd-4365-4135-a18d-cd6a2d5ec8df",
