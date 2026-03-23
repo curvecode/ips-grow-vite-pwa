@@ -3,6 +3,7 @@ import type { WifiScanResult } from "@common/wifi-network.model";
 
 const API_BASE_URL = "http://localhost:3000/api";
 const AUTH_HEADER = "X-Auth-Type";
+const DAILY_BUYS_CACHE_KEY = "dailyBuysApiCache";
 
 /**
  * API Response types
@@ -13,6 +14,30 @@ interface ApiResponse<T> {
   error?: string;
   message?: string;
   count?: number;
+}
+
+interface CachedDailyBuys {
+  cachedAt: string;
+  data: DailyBuy[];
+}
+
+function readDailyBuysCache(): DailyBuy[] | null {
+  try {
+    const raw = localStorage.getItem(DAILY_BUYS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedDailyBuys;
+    return Array.isArray(parsed.data) ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDailyBuysCache(data: DailyBuy[]): void {
+  const payload: CachedDailyBuys = {
+    cachedAt: new Date().toISOString(),
+    data,
+  };
+  localStorage.setItem(DAILY_BUYS_CACHE_KEY, JSON.stringify(payload));
 }
 
 /**
@@ -54,8 +79,19 @@ async function apiRequest<T>(
  * Get all daily buys from API
  */
 export async function getDailyBuys(): Promise<DailyBuy[]> {
-  const response = await apiRequest<DailyBuy[]>("/daily-buys");
-  return response.data || [];
+  try {
+    const response = await apiRequest<DailyBuy[]>("/daily-buys");
+    const entries = response.data || [];
+    writeDailyBuysCache(entries);
+    return entries;
+  } catch (error) {
+    const cached = readDailyBuysCache();
+    if (cached) {
+      console.log("[API] getDailyBuys: using cached response");
+      return cached;
+    }
+    throw error;
+  }
 }
 
 /**
@@ -118,5 +154,17 @@ export async function checkApiHealth(): Promise<boolean> {
     console.log("[API] checkApiHealth: Failed", error);
     return false;
   }
+}
+
+/**
+ * Browser-level network + backend health gate.
+ * Use this before write operations to avoid unnecessary request attempts.
+ */
+export async function isApiReachable(): Promise<boolean> {
+  if (!navigator.onLine) {
+    return false;
+  }
+
+  return checkApiHealth();
 }
 

@@ -139,18 +139,11 @@ export function renderApp(
               <span class="metric-icon">🔊</span>
               <span class="metric-value">--</span>
             </div>
-            <div class="metric-item" id="fullscreenMetric" title="Fullscreen Status">
-              <span class="metric-icon">📺</span>
-              <span class="metric-value">Off</span>
-            </div>
             <div class="metric-item" id="bluetoothMetric" title="Bluetooth Status">
               <span class="metric-icon">📡</span>
               <span class="metric-value">--</span>
             </div>
-            <div class="metric-item" id="keyboardMetric" title="Keyboard Status">
-              <span class="metric-icon">⌨️</span>
-              <span class="metric-value">--</span>
-            </div>
+            
           </div>
         </div>
         <div class="sync-status-bar" id="syncStatusBar">

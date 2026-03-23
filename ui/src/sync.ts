@@ -3,18 +3,24 @@ import {
   addDailyBuys as apiAddDailyBuys,
   deleteDailyBuy as apiDeleteDailyBuy,
   updateDailyBuy as apiUpdateDailyBuy,
-  checkApiHealth
+  isApiReachable
 } from "./api";
 import {
   getPendingOperations,
   removePendingOperation,
   addPendingOperation,
+  markPendingOperationFailed,
 } from "./db";
 import type { PendingOperation } from "./db";
 
 import { syncStatusStore } from "./store";
 
 const SYNC_IN_PROGRESS_KEY = "syncInProgress";
+const MAX_SYNC_RETRIES = 5;
+
+interface SyncInitOptions {
+  onReconnect?: () => Promise<void> | void;
+}
 
 /**
  * Refresh the pending operations count from DB and update store
@@ -121,11 +127,11 @@ export async function syncPendingEntries(): Promise<number> {
   }
 
   // 4. Sort final operations by timestamp to preserve overall chronological logic
-  const sortedOps = finalOpsToSync.sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  );
+  const sortedOps = finalOpsToSync
+    .filter((op) => (op.retries || 0) < MAX_SYNC_RETRIES)
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-  const isOnline = await checkApiHealth();
+  const isOnline = await isApiReachable();
   syncStatusStore.update(s => ({ ...s, isOnline }));
   
   if (!isOnline) {
@@ -163,6 +169,8 @@ export async function syncPendingEntries(): Promise<number> {
         totalSynced++;
       } catch (error) {
         console.error(`[Sync] Failed to process ${op.type} for ${op.entryId}:`, error);
+        const message = error instanceof Error ? error.message : "Unknown sync error";
+        await markPendingOperationFailed(op.id, message);
         // If it fails, we keep it in the DB to try again later
       }
     }
@@ -184,11 +192,12 @@ export async function syncPendingEntries(): Promise<number> {
 /**
  * Initialize sync listeners
  */
-export function initSync(): void {
+export function initSync(options: SyncInitOptions = {}): void {
   window.addEventListener("online", async () => {
     console.log("[Sync] Back online, triggering sync...");
     syncStatusStore.update(s => ({ ...s, isOnline: true }));
     await syncPendingEntries();
+    await options.onReconnect?.();
   });
 
   window.addEventListener("offline", () => {
@@ -198,9 +207,6 @@ export function initSync(): void {
 
   // Initial check
   syncStatusStore.update(s => ({ ...s, isOnline: navigator.onLine }));
-  if (navigator.onLine) {
-    syncPendingEntries();
-  }
 }
 
 // Re-export for compatibility if needed elsewhere

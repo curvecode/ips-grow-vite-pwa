@@ -46,7 +46,7 @@ function showNotification(message: string, type: 'success' | 'warning' | 'error'
       body: message,
       icon: '/icon-192.png',
       badge: '/icon-192.png',
-      tag: 'offline-status',
+      tag: `offline-status-${type}`,
     });
   }
 

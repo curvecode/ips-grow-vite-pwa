@@ -12,6 +12,8 @@ export interface PendingOperation {
   type: "ADD" | "UPDATE" | "DELETE";
   data: any; // The entry data for ADD/UPDATE
   timestamp: string;
+  retries: number;
+  lastError?: string;
 }
 
 /**
@@ -52,6 +54,7 @@ export async function addPendingOperation(
       type,
       data,
       timestamp: new Date().toISOString(),
+      retries: 0,
     };
 
     const request = store.add(operation);
@@ -102,5 +105,36 @@ export async function clearAllPendingOperations(): Promise<void> {
 
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
+  });
+}
+
+/**
+ * Mark one pending operation as failed and increment retry count.
+ */
+export async function markPendingOperationFailed(id: string, error: string): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, "readwrite");
+    const store = transaction.objectStore(STORE_NAME);
+    const getRequest = store.get(id);
+
+    getRequest.onsuccess = () => {
+      const operation = getRequest.result as PendingOperation | undefined;
+      if (!operation) {
+        resolve();
+        return;
+      }
+
+      const updateRequest = store.put({
+        ...operation,
+        retries: (operation.retries || 0) + 1,
+        lastError: error,
+      } satisfies PendingOperation);
+
+      updateRequest.onsuccess = () => resolve();
+      updateRequest.onerror = () => reject(updateRequest.error);
+    };
+
+    getRequest.onerror = () => reject(getRequest.error);
   });
 }

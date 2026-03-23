@@ -13,7 +13,7 @@ import {
   addDailyBuys as apiAddDailyBuys,
   updateDailyBuy as apiUpdateDailyBuy,
   getDailyBuys as apiGetDailyBuys,
-  checkApiHealth,
+  isApiReachable,
   scanWifiNetworks as apiScanWifiNetworks,
 } from "./api";
 import {
@@ -60,6 +60,44 @@ function getEntries(): DailyBuy[] {
   return stored ? JSON.parse(stored) : [];
 }
 
+function persistEntries(entries: DailyBuy[]): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  entriesStore.set(entries);
+}
+
+function mergeEntries(
+  localEntries: DailyBuy[],
+  apiEntries: DailyBuy[],
+): DailyBuy[] {
+  const merged = new Map<string, DailyBuy>();
+
+  // for (const entry of apiEntries) {
+  //   merged.set(entry.id, entry);
+  // }
+
+  // for (const entry of localEntries) {
+  //   merged.set(entry.id, entry);
+  // }
+
+  // return Array.from(merged.values()).sort(
+  //   (left, right) => new Date(right.date).getTime() - new Date(left.date).getTime(),
+  // );
+  // Seed with local cache first
+  for (const entry of localEntries) {
+    merged.set(entry.id, entry);
+  }
+
+  // API wins on conflict
+  for (const entry of apiEntries) {
+    merged.set(entry.id, entry);
+  }
+
+  return Array.from(merged.values()).sort(
+    (left, right) =>
+      new Date(right.date).getTime() - new Date(left.date).getTime(),
+  );
+}
+
 function saveEntry(entry: DailyBuy): void {
   const entries = getEntries();
   const index = entries.findIndex((e) => e.id === entry.id);
@@ -68,7 +106,7 @@ function saveEntry(entry: DailyBuy): void {
   } else {
     entries.push(entry);
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  persistEntries(entries);
 }
 
 /**
@@ -76,41 +114,33 @@ function saveEntry(entry: DailyBuy): void {
  */
 async function loadEntriesFromAPI(): Promise<void> {
   console.log("[API] loadEntriesFromAPI: Starting...");
+  const cachedEntries = getEntries();
+
+  entriesStore.set(cachedEntries);
+
   try {
     console.log("[API] Checking API health...");
-    const isOnline = await checkApiHealth();
+    const isOnline = await isApiReachable();
     console.log("[API] API health check result:", isOnline);
+    syncStatusStore.update((status) => ({ ...status, isOnline }));
 
-    if (isOnline) {
-      console.log("[API] Fetching entries from API...");
-      const apiEntries = await apiGetDailyBuys();
-      console.log("[API] Received entries from API:", apiEntries.length);
-
-      // Merge with local entries, avoiding duplicates
-      const localEntries = getEntries();
-      const localIds = new Set(localEntries.map((e) => e.id));
-      const newApiEntries = apiEntries.filter((e) => !localIds.has(e.id));
-
-      if (newApiEntries.length > 0) {
-        const merged = [...localEntries, ...newApiEntries];
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-        entriesStore.set(merged); // Update store
-        console.log(
-          "[API] Merged",
-          newApiEntries.length,
-          "new entries from API",
-        );
-      } else if (apiEntries.length > 0) {
-        // If API has entries but local doesn't, use API entries
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(apiEntries));
-        entriesStore.set(apiEntries); // Update store
-        console.log("[API] Loaded", apiEntries.length, "entries from API");
-      } else {
-        console.log("[API] No entries found in API");
-      }
-    } else {
+    if (!isOnline) {
       console.log("[API] API is offline, skipping load");
+      return;
     }
+
+    console.log("[API] Fetching entries from API...");
+    const apiEntries = await apiGetDailyBuys();
+    console.log("[API] Received entries from API:", apiEntries.length);
+
+    const mergedEntries = mergeEntries(cachedEntries, apiEntries);
+    persistEntries(mergedEntries);
+
+    console.log(
+      "[API] Cached",
+      mergedEntries.length,
+      "entries for offline use",
+    );
   } catch (error) {
     console.error("[API] Failed to load entries from API:", error);
   }
@@ -629,7 +659,7 @@ async function handleSubmit(e: Event) {
   console.log("[API] handleSubmit: Attempting to sync entry", entry.id);
   try {
     console.log("[API] Checking API health and navigator.onLine...");
-    const isOnline = await checkApiHealth();
+    const isOnline = await isApiReachable();
     console.log(
       "[API] API health:",
       isOnline,
@@ -690,7 +720,16 @@ async function handleSubmit(e: Event) {
 async function initApp() {
   initTheme();
   initOfflineDetection();
-  initSync();
+  initSync({
+    onReconnect: async () => {
+      // await loadEntriesFromAPI();
+      await loadEntriesFromAPI(); // this persists to localStorage via persistEntries()
+
+      if (currentPage === "list") {
+        await renderAppView(); // immediate visual refresh
+      }
+    },
+  });
   registerServiceWorker();
 
   // Set initial page based on URL
@@ -714,8 +753,7 @@ async function initApp() {
     const newPending = pending.filter((e) => e && !localIds.has(e.id));
     if (newPending.length > 0) {
       const merged = [...localEntries, ...newPending];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-      entriesStore.set(merged);
+      persistEntries(merged);
     }
   }
 
@@ -751,12 +789,8 @@ async function initApp() {
 
   // Try to sync pending entries if online
   if (navigator.onLine) {
-    syncStatusStore.update((s) => ({ ...s, isSyncing: true }));
-    syncPendingEntries().then((synced) => {
-      syncStatusStore.update((s) => ({ ...s, isSyncing: false }));
-      if (synced > 0) {
-        loadEntriesFromAPI();
-      }
+    syncPendingEntries().then(() => {
+      loadEntriesFromAPI();
     });
   }
 }

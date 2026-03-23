@@ -1,5 +1,5 @@
 import type { DailyBuy } from "@common/daily-buy.model";
-import { deleteDailyBuy as apiDeleteDailyBuy, checkApiHealth } from "../api";
+import { deleteDailyBuy as apiDeleteDailyBuy, isApiReachable } from "../api";
 import { addToPendingDeletes } from "../sync";
 
 /**
@@ -31,8 +31,8 @@ export async function deleteEntryWithSync(id: string): Promise<void> {
   // Try to delete from API if online
   try {
     console.log("[API] Attempting to delete entry", id);
-    const isOnline = await checkApiHealth();
-    console.log("[API] API health:", isOnline, "Navigator online:", navigator.onLine);
+    const isOnline = await isApiReachable();
+    console.log("[API] Reachability:", isOnline, "Navigator online:", navigator.onLine);
 
     if (isOnline && navigator.onLine) {
       try {
