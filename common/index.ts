@@ -4,4 +4,5 @@
  */
 
 export * from './daily-buy.model';
+export * from './wifi-network.model';
 

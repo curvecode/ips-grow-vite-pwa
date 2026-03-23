@@ -1,4 +1,5 @@
 import type { DailyBuy } from "@common/daily-buy.model";
+import type { WifiScanResult } from "@common/wifi-network.model";
 
 const API_BASE_URL = "http://localhost:3000/api";
 const AUTH_HEADER = "X-Auth-Type";
@@ -90,6 +91,17 @@ export async function deleteDailyBuy(id: string): Promise<void> {
   await apiRequest<void>(`/daily-buys/${id}`, {
     method: "DELETE",
   });
+}
+
+/**
+ * Scan nearby Wi-Fi networks via the local API.
+ */
+export async function scanWifiNetworks(): Promise<WifiScanResult> {
+  const response = await apiRequest<WifiScanResult>("/wifi/scan");
+  return response.data || {
+    networks: [],
+    scannedAt: new Date().toISOString(),
+  };
 }
 
 /**

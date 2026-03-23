@@ -1,6 +1,103 @@
 import type { DailyBuy } from "@common/daily-buy.model";
+import type { WifiNetwork } from "@common/wifi-network.model";
 
 export type Page = "add" | "list";
+
+export interface WifiPanelState {
+  isOpen: boolean;
+  isLoading: boolean;
+  error: string | null;
+  networks: WifiNetwork[];
+  lastScannedAt: string | null;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function renderWifiScanPanel(state: WifiPanelState): string {
+  const formattedTimestamp = state.lastScannedAt
+    ? new Date(state.lastScannedAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+
+  const content = state.error
+    ? `<p class="wifi-status-message wifi-status-error">${escapeHtml(state.error)}</p>`
+    : state.isLoading
+      ? '<p class="wifi-status-message">Scanning nearby Wi-Fi...</p>'
+      : state.networks.length === 0
+        ? '<p class="wifi-status-message">No Wi-Fi networks found.</p>'
+        : `
+          <ul class="wifi-network-list">
+            ${state.networks
+              .map((network) => {
+                const signal = network.signal === null ? "--" : `${network.signal}%`;
+                const channelText = network.channels.length > 0
+                  ? `Ch ${network.channels.join(", ")}`
+                  : "Channel n/a";
+                const radioText = network.radioTypes.length > 0
+                  ? network.radioTypes.join(", ")
+                  : "Radio n/a";
+
+                return `
+                  <li class="wifi-network-item">
+                    <div class="wifi-network-head">
+                      <span class="wifi-network-ssid">${escapeHtml(network.ssid)}</span>
+                      <span class="wifi-network-signal">${signal}</span>
+                    </div>
+                    <div class="wifi-network-meta">
+                      <span>${escapeHtml(network.authentication)}</span>
+                      <span>${escapeHtml(network.encryption)}</span>
+                      <span>${escapeHtml(channelText)}</span>
+                      <span>${escapeHtml(radioText)}</span>
+                    </div>
+                  </li>
+                `;
+              })
+              .join("")}
+          </ul>
+        `;
+
+  return `
+    <div class="header-action-group">
+      <button
+        class="header-icon-button scan-toggle"
+        id="scanWifiBtn"
+        type="button"
+        aria-label="Scan nearby Wi-Fi networks"
+        aria-expanded="${state.isOpen}"
+      >
+        <span class="scan-icon ${state.isLoading ? "spinning" : ""}">📶</span>
+      </button>
+      ${
+        state.isOpen
+          ? `
+            <section class="wifi-panel" id="wifiPanel">
+              <div class="wifi-panel-header">
+                <div>
+                  <h2>Available Wi-Fi</h2>
+                  <p>${formattedTimestamp ? `Last scan ${formattedTimestamp}` : "Run a scan to see nearby networks"}</p>
+                </div>
+                <div class="wifi-panel-actions">
+                  <button type="button" class="wifi-panel-btn" id="rescanWifiBtn">Rescan</button>
+                  <button type="button" class="wifi-panel-btn" id="closeWifiPanelBtn" aria-label="Close Wi-Fi panel">Close</button>
+                </div>
+              </div>
+              ${content}
+            </section>
+          `
+          : ""
+      }
+    </div>
+  `;
+}
 
 // Utility function
 export function getCurrentDateTimeLocal(): string {
@@ -17,7 +114,8 @@ export function getCurrentDateTimeLocal(): string {
 // UI rendering functions
 export function renderApp(
   currentPage: Page,
-  renderPageContent: () => string
+  renderPageContent: () => string,
+  wifiPanelState: WifiPanelState
 ): string {
   return `
     <div class="app-container">
@@ -59,9 +157,12 @@ export function renderApp(
           <span class="sync-status-dot"></span>
           <span class="sync-status-text">Checking...</span>
         </div>
-        <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
-          <span class="theme-icon">🌙</span>
-        </button>
+        <div class="header-actions">
+          ${renderWifiScanPanel(wifiPanelState)}
+          <button class="header-icon-button theme-toggle" id="themeToggle" aria-label="Toggle theme">
+            <span class="theme-icon">🌙</span>
+          </button>
+        </div>
       </header>
       
       <main class="main-content" id="mainContent">

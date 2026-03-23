@@ -3,6 +3,7 @@ import cors from "cors";
 import { authMiddleware } from "./middleware/auth";
 import { rateLimitMiddleware } from "./middleware/rateLimit";
 import dailyBuysRouter from "./routes/dailyBuys";
+import wifiRouter from "./routes/wifi";
 
 const app: Express = express();
 const PORT = process.env.PORT || 3000;
@@ -34,6 +35,7 @@ app.use("/api", rateLimitMiddleware, authMiddleware);
 
 // API routes
 app.use("/api/daily-buys", dailyBuysRouter);
+app.use("/api/wifi", wifiRouter);
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

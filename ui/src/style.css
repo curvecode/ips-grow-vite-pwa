@@ -126,6 +126,7 @@ body {
   font-weight: 600;
   letter-spacing: -0.02em;
   white-space: nowrap;
+  text-transform: uppercase;
 }
 
 /* App Information Bar in Header */
@@ -134,7 +135,7 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  font-size: 0.65rem;
+  font-size: 1rem;
   color: var(--text-secondary);
   text-align: center;
 }
@@ -162,7 +163,7 @@ body {
 }
 
 .metric-value {
-  font-size: 0.6rem;
+  font-size: 0.85rem;
   font-weight: 500;
 }
 
@@ -170,12 +171,166 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.7rem;
+  font-size: 1rem;
   font-weight: 500;
   padding: 2px 8px;
   border-radius: 12px;
   background: var(--bg-secondary);
   justify-self: end;
+}
+
+.header-actions {
+  display: flex;
+  justify-self: end;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.header-action-group {
+  position: relative;
+}
+
+.header-icon-button {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1.1rem;
+}
+
+.header-icon-button:hover {
+  background: var(--border-color);
+  transform: scale(1.05);
+}
+
+.header-icon-button:active {
+  transform: scale(0.95);
+}
+
+.scan-icon.spinning {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.wifi-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  width: min(24rem, calc(100vw - 2rem));
+  max-height: 22rem;
+  overflow: auto;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 18px 48px var(--shadow);
+  padding: 0.875rem;
+  z-index: 20;
+}
+
+.wifi-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.wifi-panel-header h2 {
+  font-size: 0.95rem;
+  margin-bottom: 0.2rem;
+}
+
+.wifi-panel-header p {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.wifi-panel-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.wifi-panel-btn {
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 0.35rem 0.6rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.wifi-network-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.wifi-network-item {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  background: var(--bg-secondary);
+}
+
+.wifi-network-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.wifi-network-ssid {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.wifi-network-signal {
+  color: var(--input-focus);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.wifi-network-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.wifi-network-meta span {
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
+}
+
+.wifi-status-message {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  padding: 0.35rem 0;
+}
+
+.wifi-status-error {
+  color: #dc2626;
 }
 
 .sync-status-dot {
@@ -233,27 +388,7 @@ body {
 }
 
 .theme-toggle {
-  justify-self: end;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
   font-size: 1.25rem;
-}
-
-.theme-toggle:hover {
-  background: var(--border-color);
-  transform: scale(1.05);
-}
-
-.theme-toggle:active {
-  transform: scale(0.95);
 }
 
 /* Main Content */
@@ -572,6 +707,15 @@ body {
     font-size: 1.25rem;
   }
 
+  .header-actions {
+    justify-self: center;
+  }
+
+  .wifi-panel {
+    right: 50%;
+    transform: translateX(50%);
+  }
+
   .form {
     gap: 1.25rem;
   }
@@ -704,4 +848,9 @@ body {
   align-items: center;
   justify-content: center;
   font-size: 1.25rem;
+}
+
+/* Scan Wi-Fi Button: Temporary hidden */
+#scanWifiBtn {
+  display: none;
 }

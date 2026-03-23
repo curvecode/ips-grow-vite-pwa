@@ -1,5 +1,6 @@
 import "./style.css";
 import type { DailyBuy, BuyType } from "@common/daily-buy.model";
+import type { WifiPanelState } from "./ui";
 import {
   renderApp,
   renderAddPage,
@@ -13,6 +14,7 @@ import {
   updateDailyBuy as apiUpdateDailyBuy,
   getDailyBuys as apiGetDailyBuys,
   checkApiHealth,
+  scanWifiNetworks as apiScanWifiNetworks,
 } from "./api";
 import {
   addToPendingSync,
@@ -119,6 +121,46 @@ async function loadEntriesFromAPI(): Promise<void> {
 // Navigation
 let currentPage: Page = "add";
 
+const wifiPanelState: WifiPanelState = {
+  isOpen: false,
+  isLoading: false,
+  error: null,
+  networks: [],
+  lastScannedAt: null,
+};
+
+function getWifiScanErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return "Failed to scan Wi-Fi networks.";
+}
+
+async function closeWifiPanel() {
+  wifiPanelState.isOpen = false;
+  await renderAppView();
+}
+
+async function scanAvailableWifiNetworks(): Promise<void> {
+  wifiPanelState.isOpen = true;
+  wifiPanelState.isLoading = true;
+  wifiPanelState.error = null;
+  await renderAppView();
+
+  try {
+    const result = await apiScanWifiNetworks();
+    wifiPanelState.networks = result.networks;
+    wifiPanelState.lastScannedAt = result.scannedAt;
+  } catch (error) {
+    wifiPanelState.networks = [];
+    wifiPanelState.error = getWifiScanErrorMessage(error);
+  } finally {
+    wifiPanelState.isLoading = false;
+    await renderAppView();
+  }
+}
+
 async function navigateTo(page: Page) {
   pageStore.set(page);
   // Update URL without triggering navigation
@@ -145,7 +187,7 @@ async function renderAppView() {
     pageContent = listPageModule.renderListPage(entries);
   }
 
-  app.innerHTML = renderApp(currentPage, () => pageContent);
+  app.innerHTML = renderApp(currentPage, () => pageContent, wifiPanelState);
 
   await setupEventListeners();
   updateThemeIcon();
@@ -333,6 +375,21 @@ async function updateAppInfo() {
 }
 
 async function setupEventListeners() {
+  const scanWifiBtn = document.getElementById("scanWifiBtn");
+  scanWifiBtn?.addEventListener("click", () => {
+    scanAvailableWifiNetworks();
+  });
+
+  const rescanWifiBtn = document.getElementById("rescanWifiBtn");
+  rescanWifiBtn?.addEventListener("click", () => {
+    scanAvailableWifiNetworks();
+  });
+
+  const closeWifiPanelBtn = document.getElementById("closeWifiPanelBtn");
+  closeWifiPanelBtn?.addEventListener("click", () => {
+    closeWifiPanel();
+  });
+
   // Theme toggle
   const themeToggle = document.getElementById("themeToggle");
   themeToggle?.addEventListener("click", () => {
