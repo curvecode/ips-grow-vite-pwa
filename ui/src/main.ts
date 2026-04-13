@@ -84,18 +84,6 @@ function mergeEntries(
   apiEntries: DailyBuy[],
 ): DailyBuy[] {
   const merged = new Map<string, DailyBuy>();
-
-  // for (const entry of apiEntries) {
-  //   merged.set(entry.id, entry);
-  // }
-
-  // for (const entry of localEntries) {
-  //   merged.set(entry.id, entry);
-  // }
-
-  // return Array.from(merged.values()).sort(
-  //   (left, right) => new Date(right.date).getTime() - new Date(left.date).getTime(),
-  // );
   // Seed with local cache first
   for (const entry of localEntries) {
     merged.set(entry.id, entry);
@@ -681,12 +669,17 @@ async function handleSubmit(e: Event) {
 
   // Always save to local IndexedDB first for durable offline-first behavior.
   // If local persistence fails, revert the optimistic UI change and stop.
+  const isUpdate = !!formData.id;
   try {
     await saveEntry(entry);
   } catch {
     alert("Could not save this entry locally. Your change was reverted.");
     return;
   }
+
+  showEntryNotification(isUpdate).catch((err) => {
+    console.error("[Notification] Failed to show notification:", err);
+  });
 
   // Try to send to API if online, otherwise add to pending sync
   console.log("[API] handleSubmit: Attempting to sync entry", entry.id);
@@ -749,10 +742,31 @@ async function handleSubmit(e: Event) {
   navigateTo("list");
 }
 
+async function requestNotificationPermission(): Promise<void> {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "default") {
+    await Notification.requestPermission();
+  }
+}
+
+async function showEntryNotification(isUpdate: boolean): Promise<void> {
+  if (!("serviceWorker" in navigator) || Notification.permission !== "granted") return;
+  const registration = await navigator.serviceWorker.ready;
+  registration.showNotification(isUpdate ? "Entry updated" : "Entry added", {
+    body: isUpdate
+      ? "Your entry has been updated successfully."
+      : "Your entry has been saved successfully.",
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/icon-192x192.png",
+    tag: `entry-saved-${Date.now()}`,
+  });
+}
+
 // Initialize app
 async function initApp() {
   initTheme();
   initOfflineDetection();
+  await requestNotificationPermission();
   initSync({
     onReconnect: async () => {
       // await loadEntriesFromAPI();
