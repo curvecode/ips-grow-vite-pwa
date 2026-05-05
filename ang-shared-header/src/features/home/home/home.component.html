@@ -1,1 +1,28 @@
-<p>home works!</p>
+<div>
+  @for (item of listSignal(); track item.title) {
+    <app-card [title]="item.title" [content]="item.content"></app-card>
+  }
+</div>
+<hr class="py-2" />
+
+<div>
+  @for (i of listNormal; track i.title) {
+    <app-card [title]="i.title" [content]="i.content"></app-card>
+  }
+</div>
+
+<div>
+  <button
+    class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+    (click)="editCard2()"
+  >
+    Edit card 2
+  </button>
+
+  <button
+    class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition ml-2"
+    (click)="editCard5Normal()"
+  >
+    Edit card 5
+  </button>
+</div>

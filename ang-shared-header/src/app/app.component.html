@@ -1,11 +1,14 @@
 <div class="container">
-  <h1>Angular App</h1>
+  <h1 class="text-3xl font-bold text-gray-900 mb-4">Angular App</h1>
 </div>
 
 <div>
-  <ul>
-    <li><a href="/">Home</a></li>
-    <li><a href="/about">About</a></li>
+  <ul
+    class="flex items-center justify-start space-x-4 bg-gray-800 p-4 text-white"
+  >
+    <li><a [routerLink]="['/']">Home</a></li>
+    <li><a [routerLink]="['/home']">About</a></li>
+    <li><a [routerLink]="['/login']">Login</a></li>
   </ul>
 </div>
 
